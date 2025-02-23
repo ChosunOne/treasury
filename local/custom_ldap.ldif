@@ -1,0 +1,54 @@
+# Organizational Units
+dn: ou=People,dc=example,dc=com
+objectClass: organizationalUnit
+ou: People
+
+# People
+dn: cn=none,ou=People,dc=example,dc=com
+objectClass: person
+objectClass: inetOrgPerson
+sn: none
+cn: none
+mail: none@example.com
+userpassword: none-password
+
+dn: cn=all,ou=People,dc=example,dc=com
+objectClass: person
+objectClass: inetOrgPerson
+sn: all
+cn: all
+mail: all@example.com
+userpassword: all-password
+
+dn: cn=admin,ou=People,dc=example,dc=com
+objectClass: person
+objectClass: inetOrgPerson
+sn: admin
+cn: admin
+mail: admin@example.com
+userpassword: admin-password
+
+dn: cn=user,ou=People,dc=example,dc=com
+objectClass: person
+objectClass: inetOrgPerson
+sn: user
+cn: user
+mail: user@example.com
+userpassword: user-password
+
+# Group definitions.
+dn: ou=Groups,dc=example,dc=com
+objectClass: organizationalUnit
+ou: Groups
+
+dn: cn=users,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: users
+member: cn=user,ou=People,dc=example,dc=com
+member: cn=all,ou=People,dc=example,dc=com
+
+dn: cn=admins,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: admins
+member: cn=admin,ou=People,dc=example,dc=com
+member: cn=all,ou=People,dc=example,dc=com

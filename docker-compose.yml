@@ -14,6 +14,24 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
+  dex:
+    container_name: dex
+    image: dexidp/dex:latest-alpine
+    ports:
+      - 5556:5556
+    volumes:
+      - ./local/dex_config.yml:/etc/dex/config.docker.yaml
+  ldap:
+    container_name: ldap
+    image: osixia/openldap:1.4.0
+    command: [ "--copy-service", "--loglevel", "debug" ]
+    environment:
+      LDAP_TLS_VERIFY_CLIENT: try
+      LDAP_ORGANISATION: example
+      LDAP_BASE_DN: dc=example,dc=com
+      LDAP_DOMAIN: example.com
+    volumes:
+      - ./local/custom-ldap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/custom-ldap.ldif
 
 volumes:
   pgdata:

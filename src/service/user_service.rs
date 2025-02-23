@@ -1,6 +1,13 @@
+use std::marker::PhantomData;
+
 use sqlx::{Acquire, PgPool};
 
 use crate::{
+    authorization::{
+        actions::{ActionSet, Create, DeleteAll, ReadAll, UpdateAll},
+        policy::Policy,
+        resources::User as UserResource,
+    },
     model::user::{User, UserCreate, UserFilter, UserId, UserUpdate},
     resource::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, UpdateRepository,
@@ -10,23 +17,25 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct UserService {
+pub struct UserService<Policy> {
     connection_pool: PgPool,
     user_repository: UserRepository,
+    policy: PhantomData<Policy>,
 }
 
-impl UserService {
+impl<Policy> UserService<Policy> {
     pub fn new(connection_pool: PgPool, user_repository: UserRepository) -> Self {
         Self {
             connection_pool,
             user_repository,
+            policy: PhantomData,
         }
     }
 }
 
-impl UserService {
-    // TODO: Figure out a way to use a typestate pattern to implement these for users who have
-    // permission.
+impl<Create, Update, Delete, Role>
+    UserService<Policy<UserResource, ActionSet<ReadAll, Create, Update, Delete>, Role>>
+{
     pub async fn get(&self, id: UserId) -> Result<User, ServiceError> {
         let user = self
             .user_repository
@@ -47,7 +56,11 @@ impl UserService {
             .await?;
         Ok(users)
     }
+}
 
+impl<Read, Update, Delete, Role>
+    UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
+{
     pub async fn create(&self, create_model: UserCreate) -> Result<User, ServiceError> {
         let user = self
             .user_repository
@@ -55,7 +68,11 @@ impl UserService {
             .await?;
         Ok(user)
     }
+}
 
+impl<Read, Create, Delete, Role>
+    UserService<Policy<UserResource, ActionSet<Read, Create, UpdateAll, Delete>, Role>>
+{
     pub async fn update(&self, update_model: UserUpdate) -> Result<User, ServiceError> {
         let mut transaction = self.connection_pool.begin().await?;
         let mut user = self
@@ -75,7 +92,11 @@ impl UserService {
         transaction.commit().await?;
         Ok(user)
     }
+}
 
+impl<Read, Create, Update, Role>
+    UserService<Policy<UserResource, ActionSet<Read, Create, Update, DeleteAll>, Role>>
+{
     pub async fn delete(&self, id: UserId) -> Result<User, ServiceError> {
         let user = self
             .user_repository
