@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use derive_more::{From, FromStr};
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromStr, From, Type)]
+#[derive(Debug, Clone, FromStr, From, Type, Serialize, Deserialize)]
 pub struct UserId(pub Uuid);
 
 #[derive(Debug, Clone, FromRow)]
