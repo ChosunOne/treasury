@@ -1,6 +1,7 @@
 pub mod user_repository;
 
 use derive_more::Display;
+use sqlx::PgTransaction;
 use thiserror::Error;
 
 #[derive(Error, Debug, Display)]
@@ -19,12 +20,17 @@ impl From<sqlx::Error> for RepositoryError {
 }
 
 pub trait GetRepository<Id, Model> {
-    fn get(&self, id: Id) -> impl Future<Output = Result<Model, RepositoryError>>;
+    fn get(
+        &self,
+        session: PgTransaction,
+        id: Id,
+    ) -> impl Future<Output = Result<Model, RepositoryError>>;
 }
 
 pub trait GetListRepository<Model, Filter> {
     fn get_list(
         &self,
+        session: PgTransaction,
         offset: i64,
         limit: i64,
         filter: Option<Filter>,
@@ -34,16 +40,25 @@ pub trait GetListRepository<Model, Filter> {
 pub trait CreateRepository<CreateModel, Model> {
     fn create(
         &self,
+        session: PgTransaction,
         create_model: CreateModel,
     ) -> impl Future<Output = Result<Model, RepositoryError>>;
 }
 
 pub trait UpdateRepository<Model> {
-    fn update(&self, model: Model) -> impl Future<Output = Result<Model, RepositoryError>>;
+    fn update(
+        &self,
+        session: PgTransaction,
+        model: Model,
+    ) -> impl Future<Output = Result<Model, RepositoryError>>;
 }
 
 pub trait DeleteRepository<Id, Model> {
-    fn delete(&self, id: Id) -> impl Future<Output = Result<Model, RepositoryError>>;
+    fn delete(
+        &self,
+        session: PgTransaction,
+        id: Id,
+    ) -> impl Future<Output = Result<Model, RepositoryError>>;
 }
 
 pub trait Repository<Id, Model, CreateModel, Filter>:

@@ -22,6 +22,13 @@ pub struct UserCreate {
 }
 
 #[derive(Debug, Clone)]
+pub struct UserUpdate {
+    pub id: UserId,
+    pub name: Option<String>,
+    pub email: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct UserFilter {
     pub name: Option<String>,
     pub email: Option<String>,

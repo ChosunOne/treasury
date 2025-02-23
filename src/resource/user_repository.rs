@@ -1,4 +1,4 @@
-use sqlx::{PgPool, QueryBuilder, query_as};
+use sqlx::{Executor, PgTransaction, QueryBuilder, query_as};
 
 use crate::model::user::{User, UserCreate, UserFilter, UserId};
 use crate::resource::{
@@ -9,18 +9,14 @@ use crate::resource::{
 const MAX_LIMIT: i64 = 100;
 
 #[derive(Debug, Clone)]
-pub struct UserRepository {
-    connection: PgPool,
-}
-
-impl UserRepository {
-    pub fn new(connection: PgPool) -> Self {
-        Self { connection }
-    }
-}
+pub struct UserRepository;
 
 impl GetRepository<UserId, User> for UserRepository {
-    async fn get(&self, id: UserId) -> Result<User, RepositoryError> {
+    async fn get(
+        &self,
+        mut session: PgTransaction<'_>,
+        id: UserId,
+    ) -> Result<User, RepositoryError> {
         let user = query_as!(
             User,
             r#"
@@ -29,7 +25,7 @@ impl GetRepository<UserId, User> for UserRepository {
             "#,
             id.0,
         )
-        .fetch_one(&self.connection)
+        .fetch_one(&mut *session)
         .await?;
         Ok(user)
     }
@@ -38,6 +34,7 @@ impl GetRepository<UserId, User> for UserRepository {
 impl GetListRepository<User, UserFilter> for UserRepository {
     async fn get_list(
         &self,
+        mut session: PgTransaction<'_>,
         offset: i64,
         limit: i64,
         filter: Option<UserFilter>,
@@ -74,7 +71,7 @@ impl GetListRepository<User, UserFilter> for UserRepository {
 
         let users = query
             .build_query_as::<User>()
-            .fetch_all(&self.connection)
+            .fetch_all(&mut *session)
             .await?;
 
         Ok(users)
@@ -82,24 +79,34 @@ impl GetListRepository<User, UserFilter> for UserRepository {
 }
 
 impl CreateRepository<UserCreate, User> for UserRepository {
-    async fn create(&self, create_model: UserCreate) -> Result<User, RepositoryError> {
+    async fn create(
+        &self,
+        mut session: PgTransaction<'_>,
+        create_model: UserCreate,
+    ) -> Result<User, RepositoryError> {
         let new_user = query_as!(
             User,
             r#"
             INSERT INTO "user" (name, email) 
-            VALUES ($1, $2) RETURNING *
+            VALUES ($1, $2) 
+            RETURNING *
             "#,
             create_model.name,
             create_model.email
         )
-        .fetch_one(&self.connection)
+        .fetch_one(&mut *session)
         .await?;
+        session.commit().await?;
         Ok(new_user)
     }
 }
 
 impl UpdateRepository<User> for UserRepository {
-    async fn update(&self, model: User) -> Result<User, RepositoryError> {
+    async fn update(
+        &self,
+        mut session: PgTransaction<'_>,
+        model: User,
+    ) -> Result<User, RepositoryError> {
         let updated_user = query_as!(
             User,
             r#"
@@ -112,14 +119,19 @@ impl UpdateRepository<User> for UserRepository {
             model.name,
             model.email,
         )
-        .fetch_one(&self.connection)
+        .fetch_one(&mut *session)
         .await?;
+        session.commit().await?;
         Ok(updated_user)
     }
 }
 
 impl DeleteRepository<UserId, User> for UserRepository {
-    async fn delete(&self, id: UserId) -> Result<User, RepositoryError> {
+    async fn delete(
+        &self,
+        mut session: PgTransaction<'_>,
+        id: UserId,
+    ) -> Result<User, RepositoryError> {
         let deleted_user = query_as!(
             User,
             r#"
@@ -129,8 +141,9 @@ impl DeleteRepository<UserId, User> for UserRepository {
             "#,
             id.0
         )
-        .fetch_one(&self.connection)
+        .fetch_one(&mut *session)
         .await?;
+        session.commit().await?;
         Ok(deleted_user)
     }
 }
