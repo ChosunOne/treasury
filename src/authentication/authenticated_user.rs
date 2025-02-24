@@ -1,22 +1,22 @@
-#[derive(Debug, Clone)]
-pub struct IdToken {
-    iss: String,
-    sub: String,
-    aud: String,
-    exp: i64,
-    iat: i64,
+use serde::Deserialize;
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Claims {
     groups: Vec<String>,
     email: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser {
-    token: IdToken,
+    claims: Claims,
 }
 
 impl AuthenticatedUser {
+    pub fn new(claims: Claims) -> Self {
+        Self { claims }
+    }
+
     pub fn email(&self) -> &str {
-        &self.token.email
+        &self.claims.email
     }
 }

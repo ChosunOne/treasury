@@ -27,6 +27,8 @@ aide = { version = "^0.14.1", features = [
 ] }
 schemars = {version = "^0.8.21", features = ["chrono", "uuid1"]}
 async-trait = "^0.1.86"
-josekit = "^0.10.1"
 http-body-util = "^0.1.2"
 futures-util = "^0.3.31"
+reqwest = {version = "^0.12.12", features = ["json"]}
+jsonwebtoken = "^9.3.1"
+indexmap = "^2.7.1"

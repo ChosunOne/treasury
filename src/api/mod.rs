@@ -1,17 +1,23 @@
-use std::sync::Arc;
+use std::{collections::HashMap, env::var, sync::Arc};
 
-use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
+use aide::{
+    axum::ApiRouter,
+    openapi::{OpenApi, SecurityScheme},
+    transform::TransformOpenApi,
+};
 use axum::{Extension, Router};
 use casbin::Enforcer;
 use docs_api::DocsApi;
+use indexmap::IndexMap;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use tower::ServiceBuilder;
-use tower_http::{auth::AsyncRequireAuthorizationLayer, trace::TraceLayer};
+use tower_http::trace::TraceLayer;
 use user_api::UserApi;
 
 use crate::{
-    authentication::authenticator::Authenticator, service::user_service_factory::UserServiceFactory,
+    authentication::authenticator::AUTH_WELL_KNOWN_URI,
+    service::user_service_factory::UserServiceFactory,
 };
 
 pub mod docs_api;
@@ -34,7 +40,6 @@ impl ApiV1 {
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
-                    .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
                     .layer(Extension(Arc::new(api))),
             )
             .with_state(AppState {
@@ -44,7 +49,19 @@ impl ApiV1 {
     }
 
     fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
-        api.title("Treasury Docs")
+        api.title("Treasury Docs").security_scheme(
+            "OpenIdConnect",
+            SecurityScheme::OpenIdConnect {
+                open_id_connect_url: AUTH_WELL_KNOWN_URI
+                    .get_or_init(|| {
+                        var("AUTH_WELL_KNOWN_URI")
+                            .expect("Failed to read `AUTH_WELL_KNOWN_URI` environment variable")
+                    })
+                    .into(),
+                description: Some("Authenticate with Dex".into()),
+                extensions: IndexMap::default(),
+            },
+        )
     }
 }
 

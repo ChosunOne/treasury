@@ -51,5 +51,6 @@ staticClients:
       - 'http://0.0.0.0:8080/docs/oauth2-redirect'
       - 'http://127.0.0.1:8080/docs/oauth2-redirect'
       - 'http://localhost:8080/docs/oauth2-redirect'
+      - 'http://localhost:8080/docs/oauth2-redirect.html'
     name: 'Treasury'
     secret: treasury_secret
