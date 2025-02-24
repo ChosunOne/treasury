@@ -13,6 +13,8 @@ pub enum ServiceError {
     UnhandledRepositoryError(RepositoryError),
     #[error("Unhandled sqlx error: {0}")]
     UnhandledSqlxError(#[from] sqlx::Error),
+    #[error("Unauthorized")]
+    Unauthorized,
 }
 
 impl From<RepositoryError> for ServiceError {

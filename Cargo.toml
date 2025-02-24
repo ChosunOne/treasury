@@ -7,6 +7,7 @@ edition = "2024"
 axum = {version = "^0.8.1", features = ["http2"]}
 sqlx = {version = "^0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"]}
 tower = "^0.5.2"
+tower-http = {version = "^0.6.2", features = ["trace", "auth"]}
 tokio = {version = "^1.43.0", features = ["full"]}
 thiserror = "^2.0.11"
 uuid = {version = "^1.14.0", features = ["v4", "serde"]}
@@ -25,3 +26,7 @@ aide = { version = "^0.14.1", features = [
     "macros",
 ] }
 schemars = {version = "^0.8.21", features = ["chrono", "uuid1"]}
+async-trait = "^0.1.86"
+josekit = "^0.10.1"
+http-body-util = "^0.1.2"
+futures-util = "^0.3.31"

@@ -1,0 +1,5 @@
+p, any, user, create
+p, user, *, read
+p, user, *, update
+p, user, *, delete
+p, admin, *, *

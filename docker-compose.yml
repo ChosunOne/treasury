@@ -31,7 +31,7 @@ services:
       LDAP_BASE_DN: dc=example,dc=com
       LDAP_DOMAIN: example.com
     volumes:
-      - ./local/custom-ldap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/custom-ldap.ldif
+      - ./local/custom_ldap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/custom-ldap.ldif
 
 volumes:
   pgdata:

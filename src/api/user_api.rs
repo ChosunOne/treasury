@@ -1,4 +1,4 @@
-use crate::{api::Api, model::user::UserId};
+use crate::{api::Api, model::user::UserId, service::user_service_factory::UserServiceFactory};
 use aide::{
     axum::{
         ApiRouter,
@@ -9,6 +9,10 @@ use aide::{
 use axum::extract::{Path, State};
 
 use super::AppState;
+
+pub struct UserApiState {
+    service_factory: UserServiceFactory,
+}
 
 pub struct UserApi;
 
