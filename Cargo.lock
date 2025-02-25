@@ -2784,6 +2784,7 @@ dependencies = [
  "derive_more",
  "env_logger",
  "futures-util",
+ "http",
  "http-body-util",
  "indexmap",
  "jsonwebtoken",

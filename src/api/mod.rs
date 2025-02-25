@@ -1,4 +1,7 @@
-use std::{collections::HashMap, env::var, sync::Arc};
+use std::{
+    env::var,
+    sync::{Arc, OnceLock},
+};
 
 use aide::{
     axum::ApiRouter,
@@ -8,11 +11,12 @@ use aide::{
 use axum::{Extension, Router};
 use casbin::Enforcer;
 use docs_api::DocsApi;
+use http::Method;
 use indexmap::IndexMap;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use tower::ServiceBuilder;
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use user_api::UserApi;
 
 use crate::{
@@ -22,6 +26,8 @@ use crate::{
 
 pub mod docs_api;
 pub mod user_api;
+
+static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
 
 pub trait Api {
     fn router() -> ApiRouter<AppState>;
@@ -33,6 +39,10 @@ impl ApiV1 {
     pub fn router(connection_pool: PgPool, enforcer: Arc<RwLock<Enforcer>>) -> Router {
         let mut api = OpenApi::default();
         let user_service_factory = UserServiceFactory::new(enforcer);
+        let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
+            var("CORS_ALLOWED_ORIGIN")
+                .expect("Failed to read `CORS_ALLOWED_ORIGIN` environment variable.")
+        });
         ApiRouter::new()
             .nest("/users", UserApi::router())
             .nest("/docs", DocsApi::router())
@@ -40,7 +50,18 @@ impl ApiV1 {
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
-                    .layer(Extension(Arc::new(api))),
+                    .layer(Extension(Arc::new(api)))
+                    .layer(
+                        CorsLayer::new()
+                            .allow_origin([allow_origin.parse().unwrap()])
+                            .allow_methods([
+                                Method::GET,
+                                Method::PUT,
+                                Method::POST,
+                                Method::PATCH,
+                                Method::DELETE,
+                            ]),
+                    ),
             )
             .with_state(AppState {
                 connection_pool,
