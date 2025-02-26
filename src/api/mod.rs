@@ -5,16 +5,23 @@ use std::{
 };
 
 use aide::{
+    OperationIo,
     axum::ApiRouter,
     openapi::{OpenApi, SecurityScheme},
     transform::TransformOpenApi,
 };
-use axum::{Extension, Router};
+use axum::{
+    Extension, Json, Router,
+    extract::{FromRequest, rejection::JsonRejection},
+    response::{IntoResponse, Response},
+};
 use casbin::Enforcer;
 use docs_api::DocsApi;
-use http::Method;
+use http::{Method, StatusCode};
 use indexmap::IndexMap;
+use serde::Serialize;
 use sqlx::PgPool;
+use thiserror::Error;
 use tokio::sync::RwLock;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -96,4 +103,42 @@ impl ApiV1 {
 pub struct AppState {
     pub connection_pool: Arc<RwLock<PgPool>>,
     pub user_service_factory: UserServiceFactory,
+}
+
+#[derive(FromRequest)]
+#[from_request(via(Json), rejection(ApiError))]
+pub struct ApiJson<T>(T);
+
+impl<T> IntoResponse for ApiJson<T>
+where
+    Json<T>: IntoResponse,
+{
+    fn into_response(self) -> Response {
+        Json(self.0).into_response()
+    }
+}
+
+#[derive(Debug, Error, OperationIo)]
+pub enum ApiError {
+    #[error("Invalid JSON in request.")]
+    JsonRejection(#[from] JsonRejection),
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApiErrorResponse {
+    message: String,
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            Self::JsonRejection(rejection) => (rejection.status(), rejection.body_text()),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error.".into(),
+            ),
+        };
+
+        (status, ApiJson(ApiErrorResponse { message })).into_response()
+    }
 }

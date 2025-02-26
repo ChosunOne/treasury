@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    api::Api,
+    api::{Api, ApiError},
     authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
     model::user::UserId,
+    schema::user::GetListResponse as UserGetListResponse,
     service::user_service::UserServiceMethods,
 };
 use aide::{
@@ -21,7 +22,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use http::StatusCode;
-use log::info;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 
 use super::AppState;
@@ -35,7 +35,7 @@ impl OperationInput for UserApiState {}
 impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
     type Rejection = Response;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         use axum::RequestPartsExt;
 
         let Extension(state) = parts
@@ -71,7 +71,7 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
 pub struct UserApi;
 
 impl UserApi {
-    pub async fn get_list(state: UserApiState) {
+    pub async fn get_list(state: UserApiState) -> Result<UserGetListResponse, ApiError> {
         todo!()
     }
 

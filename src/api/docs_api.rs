@@ -14,7 +14,6 @@ use axum::{
     Extension, Json,
     response::{Html, IntoResponse},
 };
-use tokio::sync::RwLock;
 
 use crate::api::{Api, AppState};
 
