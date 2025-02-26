@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use sqlx::{Acquire, PgPool};
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
+use tokio::sync::RwLock;
 
 use crate::{
     authentication::authenticated_user::AuthenticatedUser,
@@ -60,7 +61,7 @@ impl<T: UserServiceGet + UserServiceCreate + UserServiceUpdate + UserServiceDele
 #[derive(Debug, Clone)]
 pub struct UserService<Policy> {
     authenticated_user: AuthenticatedUser,
-    connection_pool: PgPool,
+    connection_pool: Arc<RwLock<PgPool>>,
     user_repository: UserRepository,
     policy: PhantomData<Policy>,
 }
@@ -68,7 +69,7 @@ pub struct UserService<Policy> {
 impl<Policy> UserService<Policy> {
     pub fn new(
         authenticated_user: AuthenticatedUser,
-        connection_pool: PgPool,
+        connection_pool: Arc<RwLock<PgPool>>,
         user_repository: UserRepository,
     ) -> Self {
         Self {
@@ -124,10 +125,8 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     for UserService<Policy<UserResource, ActionSet<ReadAll, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: UserId) -> Result<User, ServiceError> {
-        let user = self
-            .user_repository
-            .get(self.connection_pool.begin().await?, id)
-            .await?;
+        let pool = self.connection_pool.read().await;
+        let user = self.user_repository.get(pool.begin().await?, id).await?;
         Ok(user)
     }
 
@@ -137,9 +136,10 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         limit: i64,
         filter: Option<UserFilter>,
     ) -> Result<Vec<User>, ServiceError> {
+        let pool = self.connection_pool.read().await;
         let users = self
             .user_repository
-            .get_list(self.connection_pool.begin().await?, offset, limit, filter)
+            .get_list(pool.begin().await?, offset, limit, filter)
             .await?;
         Ok(users)
     }
@@ -161,9 +161,10 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: UserCreate) -> Result<User, ServiceError> {
+        let pool = self.connection_pool.read().await;
         let user = self
             .user_repository
-            .create(self.connection_pool.begin().await?, create_model)
+            .create(pool.begin().await?, create_model)
             .await?;
         Ok(user)
     }
@@ -195,7 +196,8 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
     for UserService<Policy<UserResource, ActionSet<Read, Create, UpdateAll, Delete>, Role>>
 {
     async fn update(&self, update_model: UserUpdate) -> Result<User, ServiceError> {
-        let mut transaction = self.connection_pool.begin().await?;
+        let pool = self.connection_pool.read().await;
+        let mut transaction = pool.begin().await?;
         let mut user = self
             .user_repository
             .get(transaction.begin().await?, update_model.id)
@@ -241,10 +243,8 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, DeleteAll>, Role>>
 {
     async fn delete(&self, id: UserId) -> Result<User, ServiceError> {
-        let user = self
-            .user_repository
-            .delete(self.connection_pool.begin().await?, id)
-            .await?;
+        let pool = self.connection_pool.read().await;
+        let user = self.user_repository.delete(pool.begin().await?, id).await?;
         Ok(user)
     }
 }

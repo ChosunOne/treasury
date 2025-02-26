@@ -1,6 +1,7 @@
 use std::{
     env::var,
     sync::{Arc, OnceLock},
+    time::Duration,
 };
 
 use aide::{
@@ -16,7 +17,9 @@ use indexmap::IndexMap;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use tower::ServiceBuilder;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
+};
 use user_api::UserApi;
 
 use crate::{
@@ -30,27 +33,33 @@ pub mod user_api;
 static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
 
 pub trait Api {
-    fn router() -> ApiRouter<AppState>;
+    fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>>;
 }
 
 pub struct ApiV1;
 
 impl ApiV1 {
-    pub fn router(connection_pool: PgPool, enforcer: Arc<RwLock<Enforcer>>) -> Router {
+    pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<RwLock<Enforcer>>) -> Router {
         let mut api = OpenApi::default();
         let user_service_factory = UserServiceFactory::new(enforcer);
         let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
             var("CORS_ALLOWED_ORIGIN")
                 .expect("Failed to read `CORS_ALLOWED_ORIGIN` environment variable.")
         });
-        ApiRouter::new()
-            .nest("/users", UserApi::router())
-            .nest("/docs", DocsApi::router())
+        let state = Arc::new(AppState {
+            connection_pool,
+            user_service_factory,
+        });
+        ApiRouter::<Arc<AppState>>::new()
+            .nest("/users", UserApi::router(Arc::clone(&state)))
+            .nest("/docs", DocsApi::router(Arc::clone(&state)))
             .finish_api_with(&mut api, Self::api_docs)
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
                     .layer(Extension(Arc::new(api)))
+                    .layer(CompressionLayer::new().gzip(true))
+                    .layer(TimeoutLayer::new(Duration::from_secs(30)))
                     .layer(
                         CorsLayer::new()
                             .allow_origin([allow_origin.parse().unwrap()])
@@ -63,10 +72,7 @@ impl ApiV1 {
                             ]),
                     ),
             )
-            .with_state(AppState {
-                connection_pool,
-                user_service_factory,
-            })
+            .with_state(state)
     }
 
     fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -88,6 +94,6 @@ impl ApiV1 {
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-    pub connection_pool: PgPool,
+    pub connection_pool: Arc<RwLock<PgPool>>,
     pub user_service_factory: UserServiceFactory,
 }

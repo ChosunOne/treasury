@@ -19,4 +19,8 @@ impl AuthenticatedUser {
     pub fn email(&self) -> &str {
         &self.claims.email
     }
+
+    pub fn groups(&self) -> &[String] {
+        &self.claims.groups
+    }
 }

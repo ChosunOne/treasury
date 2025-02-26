@@ -1,27 +1,77 @@
+use std::sync::Arc;
+
 use crate::{
-    api::Api, authentication::authenticator::Authenticator, model::user::UserId,
-    service::user_service_factory::UserServiceFactory,
+    api::Api,
+    authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
+    model::user::UserId,
+    service::user_service::UserServiceMethods,
 };
 use aide::{
+    OperationInput,
     axum::{
         ApiRouter,
         routing::{delete_with, get_with, patch_with, post_with},
     },
     transform::TransformOperation,
 };
-use axum::extract::{Path, State};
+use axum::{
+    Extension,
+    extract::{FromRequestParts, Path},
+    http::request::Parts,
+    response::{IntoResponse, Response},
+};
+use http::StatusCode;
+use log::info;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 
 use super::AppState;
 
 pub struct UserApiState {
-    service_factory: UserServiceFactory,
+    pub user_service: Box<dyn UserServiceMethods + Send>,
+}
+
+impl OperationInput for UserApiState {}
+
+impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
+    type Rejection = Response;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        use axum::RequestPartsExt;
+
+        let Extension(state) = parts
+            .extract::<Extension<Arc<AppState>>>()
+            .await
+            .map_err(|err| err.into_response())?;
+
+        let authenticated_user = parts
+            .extensions
+            .get::<AuthenticatedUser>()
+            .cloned()
+            .ok_or((
+                StatusCode::UNAUTHORIZED,
+                "User not authenticated".to_owned(),
+            ))
+            .map_err(|err| err.into_response())?;
+
+        let user_service = state
+            .user_service_factory
+            .build(authenticated_user, Arc::clone(&state.connection_pool))
+            .await
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to process user policy",
+                )
+                    .into_response()
+            })?;
+        Ok(Self { user_service })
+    }
 }
 
 pub struct UserApi;
 
 impl UserApi {
-    pub async fn get_list(State(state): State<AppState>) {
+    pub async fn get_list(state: UserApiState) {
         todo!()
     }
 
@@ -30,7 +80,7 @@ impl UserApi {
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn get(Path(user_id): Path<UserId>, State(state): State<AppState>) {
+    pub async fn get(Path(user_id): Path<UserId>, state: UserApiState) {
         todo!()
     }
 
@@ -39,7 +89,7 @@ impl UserApi {
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn create(State(state): State<AppState>) {
+    pub async fn create(state: UserApiState) {
         todo!()
     }
 
@@ -48,7 +98,7 @@ impl UserApi {
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn update(State(state): State<AppState>) {
+    pub async fn update(state: UserApiState) {
         todo!()
     }
 
@@ -57,7 +107,7 @@ impl UserApi {
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn delete(State(state): State<AppState>) {
+    pub async fn delete(state: UserApiState) {
         todo!()
     }
 
@@ -68,7 +118,7 @@ impl UserApi {
 }
 
 impl Api for UserApi {
-    fn router() -> ApiRouter<AppState> {
+    fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
         ApiRouter::new()
             .api_route("/", get_with(Self::get_list, Self::get_list_docs))
             .api_route("/{user_id}", get_with(Self::get, Self::get_docs))
@@ -76,5 +126,6 @@ impl Api for UserApi {
             .api_route("/{user_id}", patch_with(Self::update, Self::update_docs))
             .api_route("/{user_id}", delete_with(Self::delete, Self::delete_docs))
             .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
+            .layer(Extension(state))
     }
 }

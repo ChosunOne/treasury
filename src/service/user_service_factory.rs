@@ -64,41 +64,49 @@ impl UserServiceFactory {
     pub async fn build(
         &self,
         user: AuthenticatedUser,
-        connection_pool: PgPool,
-    ) -> Result<Box<dyn UserServiceMethods>, ServiceFactoryError> {
+        connection_pool: Arc<RwLock<PgPool>>,
+    ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
         let enforcer = self.enforcer.read().await;
         let mut read_level = ReadLevel::default();
-        for level in ReadLevel::levels() {
+        'outer: for level in ReadLevel::levels() {
             let level_str: &str = level.into();
-            if enforcer.enforce(("user", "users", level_str))? {
-                read_level = level;
-                break;
+            for group in user.groups() {
+                if enforcer.enforce((group, "users", level_str))? {
+                    read_level = level;
+                    break 'outer;
+                }
             }
         }
         let mut create_level = CreateLevel::default();
-        for level in CreateLevel::levels() {
+        'outer: for level in CreateLevel::levels() {
             let level_str: &str = level.into();
-            if enforcer.enforce(("user", "users", level_str))? {
-                create_level = level;
-                break;
+            for group in user.groups() {
+                if enforcer.enforce((group, "users", level_str))? {
+                    create_level = level;
+                    break 'outer;
+                }
             }
         }
 
         let mut update_level = UpdateLevel::default();
-        for level in UpdateLevel::levels() {
+        'outer: for level in UpdateLevel::levels() {
             let level_str: &str = level.into();
-            if enforcer.enforce(("user", "users", level_str))? {
-                update_level = level;
-                break;
+            for group in user.groups() {
+                if enforcer.enforce((group, "users", level_str))? {
+                    update_level = level;
+                    break 'outer;
+                }
             }
         }
 
         let mut delete_level = DeleteLevel::default();
-        for level in DeleteLevel::levels() {
+        'outer: for level in DeleteLevel::levels() {
             let level_str: &str = level.into();
-            if enforcer.enforce(("user", "users", level_str))? {
-                delete_level = level;
-                break;
+            for group in user.groups() {
+                if enforcer.enforce((group, "users", level_str))? {
+                    delete_level = level;
+                    break 'outer;
+                }
             }
         }
 
