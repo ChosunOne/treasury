@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromStr, From, Type, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, FromStr, From, Type, Serialize, Deserialize, JsonSchema)]
 pub struct UserId(pub Uuid);
 
 #[derive(Debug, Clone, FromRow, JsonSchema)]

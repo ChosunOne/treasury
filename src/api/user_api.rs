@@ -4,7 +4,11 @@ use crate::{
     api::{Api, ApiError},
     authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
     model::user::UserId,
-    schema::user::GetListResponse as UserGetListResponse,
+    schema::user::{
+        CreateResponse as UserCreateResponse, DeleteResponse as UserDeleteResponse,
+        GetListResponse as UserGetListResponse, GetResponse as UserGetResponse,
+        UpdateResponse as UserUpdateResponse,
+    },
     service::user_service::UserServiceMethods,
 };
 use aide::{
@@ -16,11 +20,12 @@ use aide::{
     transform::TransformOperation,
 };
 use axum::{
-    Extension,
+    Extension, Json,
     extract::{FromRequestParts, Path},
     http::request::Parts,
     response::{IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use http::StatusCode;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 
@@ -76,43 +81,61 @@ impl UserApi {
     }
 
     pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
-        op.description("Get a list of users.")
+        op.id("get_list_user")
+            .description("Get a list of users.")
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn get(Path(user_id): Path<UserId>, state: UserApiState) {
+    pub async fn get(
+        Path(user_id): Path<UserId>,
+        state: UserApiState,
+    ) -> Result<UserGetResponse, ApiError> {
         todo!()
     }
 
     pub fn get_docs(op: TransformOperation) -> TransformOperation {
-        op.description("Get a user by id.")
+        op.id("get_user")
+            .description("Get a user by id.")
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn create(state: UserApiState) {
+    pub async fn create(state: UserApiState) -> Result<UserCreateResponse, ApiError> {
         todo!()
     }
 
     pub fn create_docs(op: TransformOperation) -> TransformOperation {
-        op.description("Create a user")
+        op.id("create_user")
+            .description("Create a new user")
             .security_requirement("OpenIdConnect")
+            .response_with::<201, Json<UserCreateResponse>, _>(|res| {
+                res.description("The newly created user")
+                    .example(UserCreateResponse {
+                        id: UserId::default(),
+                        created_at: DateTime::<Utc>::default().to_rfc3339(),
+                        updated_at: DateTime::<Utc>::default().to_rfc3339(),
+                        name: "User Name".into(),
+                        email: "email@email.com".into(),
+                    })
+            })
     }
 
-    pub async fn update(state: UserApiState) {
+    pub async fn update(state: UserApiState) -> Result<UserUpdateResponse, ApiError> {
         todo!()
     }
 
     pub fn update_docs(op: TransformOperation) -> TransformOperation {
-        op.description("Update a user")
+        op.id("update_user")
+            .description("Update a user")
             .security_requirement("OpenIdConnect")
     }
 
-    pub async fn delete(state: UserApiState) {
+    pub async fn delete(state: UserApiState) -> Result<UserDeleteResponse, ApiError> {
         todo!()
     }
 
     pub fn delete_docs(op: TransformOperation) -> TransformOperation {
-        op.description("Delete a user")
+        op.id("delete_user")
+            .description("Delete a user")
             .security_requirement("OpenIdConnect")
     }
 }

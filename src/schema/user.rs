@@ -14,11 +14,11 @@ pub struct CreateRequest {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateResponse {
-    id: UserId,
-    created_at: String,
-    updated_at: String,
-    name: String,
-    email: String,
+    pub id: UserId,
+    pub created_at: String,
+    pub updated_at: String,
+    pub name: String,
+    pub email: String,
 }
 
 impl From<User> for CreateResponse {
@@ -44,11 +44,11 @@ pub struct GetRequest {}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetResponse {
-    id: UserId,
-    created_at: String,
-    updated_at: String,
-    name: String,
-    email: String,
+    pub id: UserId,
+    pub created_at: String,
+    pub updated_at: String,
+    pub name: String,
+    pub email: String,
 }
 
 impl From<User> for GetResponse {
@@ -86,11 +86,11 @@ pub struct UpdateRequest {}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateResponse {
-    id: UserId,
-    created_at: String,
-    updated_at: String,
-    name: String,
-    email: String,
+    pub id: UserId,
+    pub created_at: String,
+    pub updated_at: String,
+    pub name: String,
+    pub email: String,
 }
 
 impl IntoResponse for UpdateResponse {
