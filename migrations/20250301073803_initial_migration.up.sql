@@ -1,3 +1,4 @@
+-- Add up migration script here
 CREATE TABLE "user" (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
         created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

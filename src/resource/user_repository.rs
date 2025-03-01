@@ -20,7 +20,7 @@ impl GetRepository<UserId, User> for UserRepository {
         let user = query_as!(
             User,
             r#"
-            SELECT * FROM "user" 
+            SELECT * FROM "user"
             WHERE id = $1
             "#,
             id.0,

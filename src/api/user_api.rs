@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    api::{Api, ApiError},
+    api::{Api, ApiError, ApiErrorResponse, AppState},
     authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
     model::user::UserId,
     schema::user::{
@@ -28,8 +28,6 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
-
-use super::AppState;
 
 pub struct UserApiState {
     pub user_service: Box<dyn UserServiceMethods + Send>,
@@ -97,6 +95,21 @@ impl UserApi {
         op.id("get_user")
             .description("Get a user by id.")
             .security_requirement("OpenIdConnect")
+            .response_with::<200, Json<UserGetResponse>, _>(|res| {
+                res.description("A user").example(UserGetResponse {
+                    id: UserId::default(),
+                    created_at: DateTime::<Utc>::default().to_rfc3339(),
+                    updated_at: DateTime::<Utc>::default().to_rfc3339(),
+                    name: "User Name".into(),
+                    email: "email@email.com".into(),
+                })
+            })
+            .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
+                res.description("User not found.")
+                    .example(ApiErrorResponse {
+                        message: "User not found.".into(),
+                    })
+            })
     }
 
     pub async fn create(state: UserApiState) -> Result<UserCreateResponse, ApiError> {

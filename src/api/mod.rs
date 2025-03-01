@@ -19,6 +19,7 @@ use casbin::Enforcer;
 use docs_api::DocsApi;
 use http::{Method, StatusCode};
 use indexmap::IndexMap;
+use schemars::JsonSchema;
 use serde::Serialize;
 use sqlx::PgPool;
 use thiserror::Error;
@@ -105,7 +106,7 @@ pub struct AppState {
     pub user_service_factory: UserServiceFactory,
 }
 
-#[derive(FromRequest)]
+#[derive(FromRequest, OperationIo, Serialize)]
 #[from_request(via(Json), rejection(ApiError))]
 pub struct ApiJson<T>(T);
 
@@ -122,9 +123,11 @@ where
 pub enum ApiError {
     #[error("Invalid JSON in request.")]
     JsonRejection(#[from] JsonRejection),
+    #[error("Not found.")]
+    NotFound,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ApiErrorResponse {
     message: String,
 }
@@ -133,6 +136,7 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             Self::JsonRejection(rejection) => (rejection.status(), rejection.body_text()),
+            Self::NotFound => (StatusCode::NOT_FOUND, "Not found.".into()),
             _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error.".into(),

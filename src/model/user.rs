@@ -8,7 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, Default, Clone, FromStr, From, Type, Serialize, Deserialize, JsonSchema)]
 pub struct UserId(pub Uuid);
 
-#[derive(Debug, Clone, FromRow, JsonSchema)]
+#[derive(Debug, Clone, FromRow)]
 pub struct User {
     pub id: UserId,
     pub created_at: DateTime<Utc>,
@@ -17,20 +17,20 @@ pub struct User {
     pub email: String,
 }
 
-#[derive(Debug, Clone, JsonSchema)]
+#[derive(Debug, Clone)]
 pub struct UserCreate {
     pub name: String,
     pub email: String,
 }
 
-#[derive(Debug, Clone, JsonSchema)]
+#[derive(Debug, Clone)]
 pub struct UserUpdate {
     pub id: UserId,
     pub name: Option<String>,
     pub email: Option<String>,
 }
 
-#[derive(Debug, Clone, JsonSchema)]
+#[derive(Debug, Clone)]
 pub struct UserFilter {
     pub name: Option<String>,
     pub email: Option<String>,

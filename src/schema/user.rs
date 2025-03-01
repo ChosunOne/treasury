@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::user::{User, UserId};
 
+use super::Pagination;
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
     pub name: String,
@@ -70,14 +72,29 @@ impl IntoResponse for GetResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListRequest {}
+pub struct GetListRequest {
+    name: Option<String>,
+    email: Option<String>,
+    pagination: Option<Pagination>,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListResponse {}
+pub struct GetListUser {
+    pub id: UserId,
+    pub created_at: String,
+    pub updated_at: String,
+    pub name: String,
+    pub email: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+pub struct GetListResponse {
+    users: Vec<GetListUser>,
+}
 
 impl IntoResponse for GetListResponse {
     fn into_response(self) -> Response {
-        todo!()
+        (StatusCode::OK, self).into_response()
     }
 }
 

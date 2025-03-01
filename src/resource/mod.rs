@@ -1,3 +1,4 @@
+pub mod cursor_key_repository;
 pub mod user_repository;
 
 use derive_more::Display;
