@@ -4,33 +4,41 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = {version = "^0.8.1", features = ["http2", "macros"]}
-sqlx = {version = "^0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"]}
-tower = "^0.5.2"
-tower-http = {version = "^0.6.2", features = ["trace", "auth", "cors", "compression-gzip", "timeout"]}
-tokio = {version = "^1.43.0", features = ["full"]}
-thiserror = "^2.0.11"
-uuid = {version = "^1.15.1", features = ["v4", "serde"]}
-chrono = "^0.4.40"
-serde = {version = "^1.0.218", features = ["derive"]}
-serde_json = {version = "^1.0.139", features = ["preserve_order"]}
-derive_more = {version = "^2.0.1", features = ["full"]}
-casbin = "^2.10.1"
+aes-gcm-siv = "0.11.1"
 aide = { version = "^0.14.1", features = [
     "redoc",
     "swagger",
     "scalar",
     "axum-json",
+    "axum-query",
+    "axum-tokio",
+    "axum-multipart",
+    "axum-original-uri",
+    "axum-ws",
+    "axum-matched-path",
+    "axum-form",
     "macros",
 ] }
-schemars = {version = "^0.8.22", features = ["chrono", "uuid1", "preserve_order"]}
 async-trait = "^0.1.86"
-http-body-util = "^0.1.2"
+axum = {version = "^0.8.1", features = ["http2", "macros"]}
+base64 = "0.22.1"
+cached = {version = "^0.54.0", features = ["async"]}
+casbin = "^2.10.1"
+chrono = "^0.4.40"
+derive_more = {version = "^2.0.1", features = ["full"]}
 futures-util = "^0.3.31"
-reqwest = {version = "^0.12.12", features = ["json"]}
-jsonwebtoken = "^9.3.1"
-indexmap = "^2.7.1"
 http = "^1.2.0"
+indexmap = "^2.7.1"
+jsonwebtoken = "^9.3.1"
+reqwest = {version = "^0.12.12", features = ["json"]}
+schemars = {version = "^0.8.22", features = ["chrono", "uuid1", "preserve_order"]}
+serde = {version = "^1.0.218", features = ["derive"]}
+serde_json = {version = "^1.0.139", features = ["preserve_order"]}
+sqlx = {version = "^0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"]}
+thiserror = "^2.0.11"
+tokio = {version = "^1.43.0", features = ["full"]}
+tower = "^0.5.2"
+tower-http = {version = "^0.6.2", features = ["trace", "auth", "cors", "compression-gzip", "timeout"]}
 tracing = "^0.1.41"
 tracing-subscriber = {version = "^0.3.19", features = ["env-filter"]}
-cached = {version = "^0.54.0", features = ["async"]}
+uuid = {version = "^1.15.1", features = ["v4", "serde"]}

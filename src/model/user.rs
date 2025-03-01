@@ -30,7 +30,7 @@ pub struct UserUpdate {
     pub email: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserFilter {
     pub name: Option<String>,
     pub email: Option<String>,

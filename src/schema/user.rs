@@ -4,9 +4,7 @@ use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::model::user::{User, UserId};
-
-use super::Pagination;
+use crate::model::user::{User, UserFilter, UserId};
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
@@ -71,11 +69,19 @@ impl IntoResponse for GetResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetListRequest {
-    name: Option<String>,
-    email: Option<String>,
-    pagination: Option<Pagination>,
+    pub name: Option<String>,
+    pub email: Option<String>,
+}
+
+impl From<GetListRequest> for UserFilter {
+    fn from(value: GetListRequest) -> Self {
+        Self {
+            name: value.name,
+            email: value.email,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
@@ -89,7 +95,7 @@ pub struct GetListUser {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
-    users: Vec<GetListUser>,
+    pub users: Vec<GetListUser>,
 }
 
 impl IntoResponse for GetListResponse {

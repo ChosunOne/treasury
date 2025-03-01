@@ -34,25 +34,24 @@ impl GetListRepository<CursorKey, CursorKeyFilter> for CursorKeyRepository {
     async fn get_list(
         &self,
         mut session: PgTransaction<'_>,
-        offset: i64,
-        limit: i64,
-        filter: Option<CursorKeyFilter>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        filter: CursorKeyFilter,
     ) -> Result<Vec<CursorKey>, RepositoryError> {
-        let offset = offset.max(0);
-        let limit = limit.clamp(1, MAX_LIMIT);
+        let offset = offset.map(|x| x.max(0)).unwrap_or(0);
+        let limit = limit.map(|x| x.clamp(1, MAX_LIMIT)).unwrap_or(MAX_LIMIT);
         let mut query = QueryBuilder::new(
             r#"
             SELECT * FROM cursor_key
         "#,
         );
 
-        if let Some(f) = filter {
-            query.push(r#"WHERE"#);
-            if let Some(expires_at) = f.expires_at {
-                query.push(r#"expires_at IS NULL OR expires_at > "#);
-                query.push_bind(expires_at);
-            }
+        query.push(r#"WHERE"#);
+        if let Some(expires_at) = filter.expires_at {
+            query.push(r#"expires_at IS NULL OR expires_at > "#);
+            query.push_bind(expires_at);
         }
+
         query.push(r#"OFFSET "#);
         query.push_bind(offset);
         query.push(r#"LIMIT "#);

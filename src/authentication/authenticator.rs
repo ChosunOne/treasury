@@ -13,7 +13,7 @@ use cached::proc_macro::cached;
 use futures_util::future::BoxFuture;
 use jsonwebtoken::{DecodingKey, Validation, decode, decode_header, jwk::JwkSet};
 use tower_http::auth::AsyncAuthorizeRequest;
-use tracing::error;
+use tracing::{debug, error};
 
 pub static AUTH_WELL_KNOWN_URI: OnceLock<String> = OnceLock::new();
 static AUTH_ISSUER: OnceLock<String> = OnceLock::new();
@@ -24,6 +24,7 @@ pub struct Authenticator;
 
 #[cached(result = true, time = 300, size = 1)]
 async fn get_well_known() -> Result<WellKnown, AuthenticationError> {
+    debug!("Refreshing well known data.");
     let well_known_uri = AUTH_WELL_KNOWN_URI.get_or_init(|| {
         var("AUTH_WELL_KNOWN_URI")
             .expect("Failed to read `AUTH_WELL_KNOWN_URI` environment variable.")
@@ -37,6 +38,7 @@ async fn get_well_known() -> Result<WellKnown, AuthenticationError> {
 
 #[cached(result = true, time = 300, size = 3)]
 async fn get_jwk_set(well_known: WellKnown) -> Result<JwkSet, AuthenticationError> {
+    debug!("Refreshing jwk set.");
     let jwks = reqwest::get(well_known.jwks_uri)
         .await?
         .json::<JwkSet>()

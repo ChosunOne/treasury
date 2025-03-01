@@ -4,10 +4,13 @@ use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState},
     authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
     model::user::UserId,
-    schema::user::{
-        CreateResponse as UserCreateResponse, DeleteResponse as UserDeleteResponse,
-        GetListResponse as UserGetListResponse, GetResponse as UserGetResponse,
-        UpdateResponse as UserUpdateResponse,
+    schema::{
+        Pagination,
+        user::{
+            CreateResponse as UserCreateResponse, DeleteResponse as UserDeleteResponse,
+            GetListRequest, GetListResponse as UserGetListResponse, GetResponse as UserGetResponse,
+            UpdateResponse as UserUpdateResponse,
+        },
     },
     service::user_service::UserServiceMethods,
 };
@@ -21,7 +24,7 @@ use aide::{
 };
 use axum::{
     Extension, Json,
-    extract::{FromRequestParts, Path},
+    extract::{FromRequestParts, Path, Query},
     http::request::Parts,
     response::{IntoResponse, Response},
 };
@@ -67,6 +70,7 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
                 )
                     .into_response()
             })?;
+
         Ok(Self { user_service })
     }
 }
@@ -74,7 +78,16 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
 pub struct UserApi;
 
 impl UserApi {
-    pub async fn get_list(state: UserApiState) -> Result<UserGetListResponse, ApiError> {
+    pub async fn get_list(
+        state: UserApiState,
+        pagination: Pagination,
+        Query(filter): Query<GetListRequest>,
+    ) -> Result<UserGetListResponse, ApiError> {
+        let offset = pagination.cursor.map(|c| c.offset);
+        let users = state
+            .user_service
+            .get_list(offset, pagination.max_items, filter.into())
+            .await?;
         todo!()
     }
 

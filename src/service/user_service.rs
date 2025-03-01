@@ -25,9 +25,9 @@ pub trait UserServiceGet {
     async fn get(&self, id: UserId) -> Result<User, ServiceError>;
     async fn get_list(
         &self,
-        offset: i64,
-        limit: i64,
-        filter: Option<UserFilter>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError>;
 }
 
@@ -92,9 +92,9 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
     async fn get_list(
         &self,
-        _offset: i64,
-        _limit: i64,
-        _filter: Option<UserFilter>,
+        _offset: Option<i64>,
+        _limit: Option<i64>,
+        _filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
         Err(ServiceError::Unauthorized)
     }
@@ -111,9 +111,9 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
     async fn get_list(
         &self,
-        offset: i64,
-        limit: i64,
-        filter: Option<UserFilter>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
         todo!()
     }
@@ -132,9 +132,9 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
     async fn get_list(
         &self,
-        offset: i64,
-        limit: i64,
-        filter: Option<UserFilter>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
         let pool = self.connection_pool.read().await;
         let users = self

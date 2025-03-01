@@ -32,7 +32,7 @@ use user_api::UserApi;
 
 use crate::{
     authentication::authenticator::AUTH_WELL_KNOWN_URI,
-    service::user_service_factory::UserServiceFactory,
+    service::{ServiceError, user_service_factory::UserServiceFactory},
 };
 
 pub mod docs_api;
@@ -125,6 +125,8 @@ pub enum ApiError {
     JsonRejection(#[from] JsonRejection),
     #[error("Not found.")]
     NotFound,
+    #[error("Error in service.")]
+    Service(#[from] ServiceError),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

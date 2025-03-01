@@ -35,33 +35,31 @@ impl GetListRepository<User, UserFilter> for UserRepository {
     async fn get_list(
         &self,
         mut session: PgTransaction<'_>,
-        offset: i64,
-        limit: i64,
-        filter: Option<UserFilter>,
+        offset: Option<i64>,
+        limit: Option<i64>,
+        filter: UserFilter,
     ) -> Result<Vec<User>, RepositoryError> {
-        let limit = limit.clamp(1, MAX_LIMIT);
-        let offset = offset.max(0);
+        let limit = limit.map(|x| x.clamp(1, MAX_LIMIT)).unwrap_or(MAX_LIMIT);
+        let offset = offset.map(|x| x.max(0)).unwrap_or(0);
         let mut query = QueryBuilder::new(
             r#"
             SELECT * FROM "user"
             "#,
         );
 
-        if let Some(f) = filter {
-            query.push(r#"WHERE"#);
-            let name_and_email = f.name.is_some() && f.email.is_some();
+        query.push(r#"WHERE"#);
+        let name_and_email = filter.name.is_some() && filter.email.is_some();
 
-            if let Some(name) = f.name {
-                query.push(r#"name = "#);
-                query.push_bind(name);
-            }
-            if name_and_email {
-                query.push("AND");
-            }
-            if let Some(email) = f.email {
-                query.push(r#"email = "#);
-                query.push_bind(email);
-            }
+        if let Some(name) = filter.name {
+            query.push(r#"name = "#);
+            query.push_bind(name);
+        }
+        if name_and_email {
+            query.push("AND");
+        }
+        if let Some(email) = filter.email {
+            query.push(r#"email = "#);
+            query.push_bind(email);
         }
 
         query.push(r#"OFFSET "#);

@@ -1,12 +1,26 @@
+use aide::OperationIo;
 use chrono::{DateTime, Utc};
-use derive_more::{From, FromStr};
+use derive_more::{Display, From, FromStr};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 
-#[derive(Debug, Default, Clone, FromRow, FromStr, From, Type, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    FromRow,
+    FromStr,
+    From,
+    Type,
+    Serialize,
+    Deserialize,
+    Display,
+    OperationIo,
+)]
 pub struct CursorKeyId(pub i32);
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug, Clone)]
 pub struct CursorKey {
     pub id: CursorKeyId,
     pub created_at: DateTime<Utc>,
