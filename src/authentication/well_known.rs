@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
 pub struct WellKnown {
     pub issuer: String,
     pub authorization_endpoint: String,

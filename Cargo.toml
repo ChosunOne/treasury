@@ -33,3 +33,4 @@ indexmap = "^2.7.1"
 http = "^1.2.0"
 tracing = "^0.1.41"
 tracing-subscriber = {version = "^0.3.19", features = ["env-filter"]}
+cached = {version = "^0.54.0", features = ["async"]}
