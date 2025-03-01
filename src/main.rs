@@ -1,12 +1,13 @@
 use axum::serve;
 use casbin::{CoreApi, Enforcer};
-use log::info;
 use sqlx::postgres::PgPoolOptions;
 use std::{
     env::var,
     sync::{Arc, OnceLock},
 };
 use tokio::{net::TcpListener, sync::RwLock};
+use tracing::info;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 use treasury::api::ApiV1;
 
 static AUTH_MODEL_PATH: OnceLock<String> = OnceLock::new();
@@ -14,7 +15,11 @@ static AUTH_POLICY_PATH: OnceLock<String> = OnceLock::new();
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(EnvFilter::from_default_env())
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to initialize tracing subscriber.");
     let model_path: &'static str = AUTH_MODEL_PATH.get_or_init(|| {
         var("AUTH_MODEL_PATH").expect("Failed to read `AUTH_MODEL_PATH` env variable")
     });

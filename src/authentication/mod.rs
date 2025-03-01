@@ -17,8 +17,6 @@ pub enum AuthenticationError {
     MissingKeyId,
     #[error("Missing key with kid in JWKSet")]
     MissingKey,
-    #[error("Corrupt `Authorization` header in request.")]
-    CorruptHeader(#[from] ToStrError),
     #[error("Invalid token in authorization header.")]
     InvalidToken(#[from] jsonwebtoken::errors::Error),
     #[error("Failed to parse `AUTH_WELL_KNOWN_URI` variable.")]

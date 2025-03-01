@@ -12,6 +12,7 @@ use axum::{
 use futures_util::future::BoxFuture;
 use jsonwebtoken::{DecodingKey, Validation, decode, decode_header, jwk::JwkSet};
 use tower_http::auth::AsyncAuthorizeRequest;
+use tracing::error;
 
 pub static AUTH_WELL_KNOWN_URI: OnceLock<String> = OnceLock::new();
 static AUTH_ISSUER: OnceLock<String> = OnceLock::new();
@@ -96,10 +97,20 @@ impl<B: Send + 'static> AsyncAuthorizeRequest<B> for Authenticator {
                     request.extensions_mut().insert(user);
                     Ok(request)
                 }
-                Err(_) => Err(Response::builder()
-                    .status(StatusCode::UNAUTHORIZED)
-                    .body(Body::default())
-                    .unwrap()),
+                Err(e) => match e {
+                    AuthenticationError::WellKnownParse => {
+                        error!("Failed to parse well known data");
+                        Err(Response::builder()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .body(Body::default())
+                            .unwrap())
+                    }
+                    AuthenticationError::WellKnownConnection(error) => todo!(),
+                    _ => Err(Response::builder()
+                        .status(StatusCode::UNAUTHORIZED)
+                        .body(Body::default())
+                        .unwrap()),
+                },
             }
         })
     }
