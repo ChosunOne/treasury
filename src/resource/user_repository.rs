@@ -35,19 +35,23 @@ impl GetListRepository<User, UserFilter> for UserRepository {
     async fn get_list(
         &self,
         mut session: PgTransaction<'_>,
-        offset: Option<i64>,
+        offset: i64,
         limit: Option<i64>,
         filter: UserFilter,
     ) -> Result<Vec<User>, RepositoryError> {
+        let offset = offset.max(0);
         let limit = limit.map(|x| x.clamp(1, MAX_LIMIT)).unwrap_or(MAX_LIMIT);
-        let offset = offset.map(|x| x.max(0)).unwrap_or(0);
         let mut query = QueryBuilder::new(
             r#"
             SELECT * FROM "user"
             "#,
         );
 
-        query.push(r#"WHERE"#);
+        let name_or_email = filter.name.is_some() || filter.email.is_some();
+        if name_or_email {
+            query.push(r#"WHERE "#);
+        }
+
         let name_and_email = filter.name.is_some() && filter.email.is_some();
 
         if let Some(name) = filter.name {
@@ -55,16 +59,16 @@ impl GetListRepository<User, UserFilter> for UserRepository {
             query.push_bind(name);
         }
         if name_and_email {
-            query.push("AND");
+            query.push(" AND ");
         }
         if let Some(email) = filter.email {
             query.push(r#"email = "#);
             query.push_bind(email);
         }
 
-        query.push(r#"OFFSET "#);
+        query.push(r#" OFFSET "#);
         query.push_bind(offset);
-        query.push(r#"LIMIT "#);
+        query.push(r#" LIMIT "#);
         query.push_bind(limit);
 
         let users = query

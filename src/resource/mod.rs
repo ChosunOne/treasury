@@ -32,7 +32,7 @@ pub trait GetListRepository<Model, Filter> {
     fn get_list(
         &self,
         session: PgTransaction,
-        offset: Option<i64>,
+        offset: i64,
         limit: Option<i64>,
         filter: Filter,
     ) -> impl Future<Output = Result<Vec<Model>, RepositoryError>>;

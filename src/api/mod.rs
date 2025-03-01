@@ -28,10 +28,12 @@ use tower::ServiceBuilder;
 use tower_http::{
     compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
 };
+use tracing::error;
 use user_api::UserApi;
 
 use crate::{
     authentication::authenticator::AUTH_WELL_KNOWN_URI,
+    model::cursor_key::EncryptionError,
     service::{ServiceError, user_service_factory::UserServiceFactory},
 };
 
@@ -127,6 +129,8 @@ pub enum ApiError {
     NotFound,
     #[error("Error in service.")]
     Service(#[from] ServiceError),
+    #[error("{0}")]
+    Encryption(#[from] EncryptionError),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -138,11 +142,25 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             Self::JsonRejection(rejection) => (rejection.status(), rejection.body_text()),
+            Self::Service(service_error) => match service_error {
+                ServiceError::NotFound => (StatusCode::NOT_FOUND, "Not found.".into()),
+                ServiceError::Unauthorized => (StatusCode::FORBIDDEN, "Forbidden".into()),
+                e => {
+                    error!("{e}");
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Internal server error.".into(),
+                    )
+                }
+            },
             Self::NotFound => (StatusCode::NOT_FOUND, "Not found.".into()),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error.".into(),
-            ),
+            e => {
+                error!("{e}");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error.".into(),
+                )
+            }
         };
 
         (status, ApiJson(ApiErrorResponse { message })).into_response()

@@ -1,10 +1,20 @@
 use aide::OperationIo;
-use axum::response::{IntoResponse, Response};
+use axum::{
+    body::Body,
+    response::{IntoResponse, Response},
+};
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, error};
 
-use crate::model::user::{User, UserFilter, UserId};
+use crate::{
+    model::{
+        cursor_key::{CursorKey, EncryptionError},
+        user::{User, UserFilter, UserId},
+    },
+    schema::{Cursor, Pagination},
+};
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
@@ -93,14 +103,46 @@ pub struct GetListUser {
     pub email: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+impl From<User> for GetListUser {
+    fn from(value: User) -> Self {
+        Self {
+            id: value.id,
+            created_at: value.created_at.to_rfc3339(),
+            updated_at: value.updated_at.to_rfc3339(),
+            name: value.name,
+            email: value.email,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
     pub users: Vec<GetListUser>,
+    pub cursor: String,
+}
+
+impl GetListResponse {
+    pub fn new(
+        users: Vec<User>,
+        pagination: &Pagination,
+        cursor_key: &CursorKey,
+    ) -> Result<Self, EncryptionError> {
+        let users = users.into_iter().map(|x| x.into()).collect::<Vec<_>>();
+        let offset = pagination.offset() + users.len() as i64;
+        let cursor = cursor_key.encrypt_base64(Cursor { offset })?;
+        Ok(Self { users, cursor })
+    }
 }
 
 impl IntoResponse for GetListResponse {
     fn into_response(self) -> Response {
-        (StatusCode::OK, self).into_response()
+        Response::builder()
+            .status(200)
+            .body(Body::from(serde_json::json!(self).to_string()))
+            .unwrap_or_else(|e| {
+                error!("{e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            })
     }
 }
 

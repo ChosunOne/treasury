@@ -3052,11 +3052,13 @@ dependencies = [
  "cached",
  "casbin",
  "chrono",
+ "crypto-common",
  "derive_more",
  "futures-util",
  "http",
  "indexmap 2.7.1",
  "jsonwebtoken",
+ "rand 0.9.0",
  "reqwest",
  "schemars",
  "serde",
@@ -3069,6 +3071,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "zerocopy 0.8.21",
+ "zerocopy-derive 0.8.21",
 ]
 
 [[package]]

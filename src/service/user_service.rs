@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use sqlx::{Acquire, PgPool};
 use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::RwLock;
+use tracing::debug;
 
 use crate::{
     authentication::authenticated_user::AuthenticatedUser,
@@ -25,7 +26,7 @@ pub trait UserServiceGet {
     async fn get(&self, id: UserId) -> Result<User, ServiceError>;
     async fn get_list(
         &self,
-        offset: Option<i64>,
+        offset: i64,
         limit: Option<i64>,
         filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError>;
@@ -92,10 +93,11 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
     async fn get_list(
         &self,
-        _offset: Option<i64>,
+        _offset: i64,
         _limit: Option<i64>,
         _filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
+        debug!("GET LIST NONE");
         Err(ServiceError::Unauthorized)
     }
 }
@@ -111,11 +113,18 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
     async fn get_list(
         &self,
-        offset: Option<i64>,
+        offset: i64,
         limit: Option<i64>,
-        filter: UserFilter,
+        mut filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
-        todo!()
+        debug!("GET LIST");
+        let pool = self.connection_pool.read().await;
+        filter.email = self.authenticated_user.email().to_owned().into();
+        let users = self
+            .user_repository
+            .get_list(pool.begin().await?, offset, limit, filter)
+            .await?;
+        Ok(users)
     }
 }
 
@@ -132,10 +141,11 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
     async fn get_list(
         &self,
-        offset: Option<i64>,
+        offset: i64,
         limit: Option<i64>,
         filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
+        debug!("GET LIST ALL");
         let pool = self.connection_pool.read().await;
         let users = self
             .user_repository

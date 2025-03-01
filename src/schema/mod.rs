@@ -21,9 +21,10 @@ use schemars::{
     JsonSchema, SchemaGenerator,
     schema::{InstanceType, Schema, SchemaObject},
 };
-use serde::{Deserialize, Serialize};
 use sqlx::Acquire;
 use tracing::{debug, error};
+use zerocopy::FromBytes;
+use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
 
 use crate::{
     api::AppState,
@@ -45,9 +46,8 @@ impl Pagination {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, OperationIo)]
+#[derive(Debug, Default, Clone, Copy, OperationIo, IntoBytes, Immutable, FromBytes)]
 pub struct Cursor {
-    pub key_id: CursorKeyId,
     pub offset: i64,
 }
 
@@ -129,32 +129,13 @@ impl<S: Send + Sync> FromRequestParts<S> for Pagination {
                 return Err((StatusCode::BAD_REQUEST, "Invalid cursor.").into_response());
             }
 
-            let mut cursor_key_bytes: [u8; 4] = [0; 4];
-            cursor_key_bytes.copy_from_slice(&cursor_bytes[..4]);
-            let mut cursor_nonce_bytes: [u8; 12] = [0; 12];
-            cursor_nonce_bytes.copy_from_slice(&cursor_bytes[4..16]);
-
-            let cursor_data_bytes = &cursor_bytes[16..];
-
-            let cursor_key_id = CursorKeyId(i32::from_le_bytes(cursor_key_bytes));
+            let cursor_key_id_bytes = &cursor_bytes[0..4];
+            let cursor_key_id = CursorKeyId::read_from_bytes(cursor_key_id_bytes)
+                .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid cursor.").into_response())?;
             let cursor_key = get_cursor_key(state, cursor_key_id).await?;
-            let key = match Aes256GcmSiv::new_from_slice(&cursor_key.key_data) {
-                Ok(k) => k,
-                Err(e) => {
-                    error!("{e}");
-                    return Err(
-                        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.")
-                            .into_response(),
-                    );
-                }
-            };
-            let nonce = Nonce::from_slice(&cursor_nonce_bytes);
-            let Ok(cursor_json_bytes) = key.decrypt(nonce, cursor_data_bytes) else {
-                return Err((StatusCode::BAD_REQUEST, "Invalid cursor.").into_response());
-            };
-            let Ok(cursor) = serde_json::from_slice::<Cursor>(&cursor_json_bytes) else {
-                return Err((StatusCode::BAD_REQUEST, "Invalid cursor.").into_response());
-            };
+            let cursor = cursor_key
+                .decrypt(&cursor_bytes)
+                .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid cursor.").into_response())?;
 
             Some(cursor)
         } else {

@@ -6,6 +6,7 @@ use sqlx::{FromRow, Type};
 use uuid::Uuid;
 
 #[derive(Debug, Default, Clone, FromStr, From, Type, Serialize, Deserialize, JsonSchema)]
+#[sqlx(transparent)]
 pub struct UserId(pub Uuid);
 
 #[derive(Debug, Clone, FromRow)]

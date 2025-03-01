@@ -6,6 +6,7 @@ use derive_more::Display;
 use sqlx::PgPool;
 use thiserror::Error;
 use tokio::sync::RwLock;
+use tracing::debug;
 
 use crate::authentication::authenticated_user::AuthenticatedUser;
 use crate::authorization::actions::{
@@ -66,6 +67,7 @@ impl UserServiceFactory {
         user: AuthenticatedUser,
         connection_pool: Arc<RwLock<PgPool>>,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
+        debug!("{:?}", user.groups());
         let enforcer = self.enforcer.read().await;
         let mut read_level = ReadLevel::default();
         'outer: for level in ReadLevel::levels() {
@@ -77,6 +79,7 @@ impl UserServiceFactory {
                 }
             }
         }
+        debug!("{read_level:?}");
         let mut create_level = CreateLevel::default();
         'outer: for level in CreateLevel::levels() {
             let level_str: &str = level.into();

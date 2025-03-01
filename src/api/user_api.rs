@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState},
     authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
-    model::user::UserId,
+    model::{cursor_key::CursorKey, user::UserId},
     schema::{
         Pagination,
         user::{
@@ -31,6 +31,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
+use tracing::debug;
 
 pub struct UserApiState {
     pub user_service: Box<dyn UserServiceMethods + Send>,
@@ -81,14 +82,17 @@ impl UserApi {
     pub async fn get_list(
         state: UserApiState,
         pagination: Pagination,
+        cursor_key: CursorKey,
         Query(filter): Query<GetListRequest>,
     ) -> Result<UserGetListResponse, ApiError> {
-        let offset = pagination.cursor.map(|c| c.offset);
+        let offset = pagination.offset();
         let users = state
             .user_service
             .get_list(offset, pagination.max_items, filter.into())
             .await?;
-        todo!()
+        let response = UserGetListResponse::new(users, &pagination, &cursor_key)?;
+
+        Ok(response)
     }
 
     pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
