@@ -17,6 +17,7 @@ use schemars::{
     JsonSchema, SchemaGenerator,
     schema::{InstanceType, Schema, SchemaObject},
 };
+use serde::Deserialize;
 use sqlx::Acquire;
 use tracing::{debug, error};
 use zerocopy::FromBytes;
@@ -30,9 +31,16 @@ use crate::{
 
 pub mod user;
 
-#[derive(Debug, Clone, Copy, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Copy, JsonSchema, OperationIo, Deserialize)]
+#[aide(input_with = "axum::extract::Query<Pagination>")]
 pub struct Pagination {
+    /// The maximum items to return
+    #[schemars(with = "i64")]
+    #[serde(default)]
     pub max_items: Option<i64>,
+    /// The request cursor
+    #[schemars(with = "String")]
+    #[serde(default)]
     pub cursor: Option<Cursor>,
 }
 
@@ -42,7 +50,9 @@ impl Pagination {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, OperationIo, IntoBytes, Immutable, FromBytes)]
+#[derive(
+    Debug, Default, Deserialize, Clone, Copy, OperationIo, IntoBytes, Immutable, FromBytes,
+)]
 pub struct Cursor {
     pub offset: i64,
 }
