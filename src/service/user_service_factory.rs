@@ -67,7 +67,7 @@ impl UserServiceFactory {
         user: AuthenticatedUser,
         connection_pool: Arc<RwLock<PgPool>>,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
-        debug!("{:?}", user.groups());
+        debug!("User Groups: {:?}", user.groups());
         let enforcer = self.enforcer.read().await;
         let mut read_level = ReadLevel::default();
         'outer: for level in ReadLevel::levels() {
@@ -79,7 +79,7 @@ impl UserServiceFactory {
                 }
             }
         }
-        debug!("{read_level:?}");
+        debug!("Read level: {read_level:?}");
         let mut create_level = CreateLevel::default();
         'outer: for level in CreateLevel::levels() {
             let level_str: &str = level.into();
@@ -91,6 +91,7 @@ impl UserServiceFactory {
             }
         }
 
+        debug!("Create level: {create_level:?}");
         let mut update_level = UpdateLevel::default();
         'outer: for level in UpdateLevel::levels() {
             let level_str: &str = level.into();
@@ -102,6 +103,7 @@ impl UserServiceFactory {
             }
         }
 
+        debug!("Update level: {update_level:?}");
         let mut delete_level = DeleteLevel::default();
         'outer: for level in DeleteLevel::levels() {
             let level_str: &str = level.into();
@@ -112,6 +114,7 @@ impl UserServiceFactory {
                 }
             }
         }
+        debug!("Delete level: {delete_level:?}");
 
         generate_permission_combinations!(
             read_level, create_level, update_level, delete_level, user, connection_pool;

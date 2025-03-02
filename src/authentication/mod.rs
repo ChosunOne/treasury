@@ -2,7 +2,6 @@ pub mod authenticated_user;
 pub mod authenticator;
 pub mod well_known;
 
-use axum::http::header::ToStrError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

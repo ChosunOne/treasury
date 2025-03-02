@@ -1,17 +1,16 @@
 use aide::OperationIo;
 use axum::{
-    body::Body,
+    Json,
     response::{IntoResponse, Response},
 };
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::error;
 
 use crate::{
     model::{
         cursor_key::{CursorKey, EncryptionError},
-        user::{User, UserFilter, UserId},
+        user::{User, UserCreate, UserFilter, UserId, UserUpdate},
     },
     schema::{Cursor, Pagination},
 };
@@ -20,6 +19,15 @@ use crate::{
 pub struct CreateRequest {
     pub name: String,
     pub email: String,
+}
+
+impl From<CreateRequest> for UserCreate {
+    fn from(value: CreateRequest) -> Self {
+        Self {
+            name: value.name,
+            email: value.email,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
@@ -45,13 +53,7 @@ impl From<User> for CreateResponse {
 
 impl IntoResponse for CreateResponse {
     fn into_response(self) -> Response {
-        Response::builder()
-            .status(200)
-            .body(Body::from(serde_json::json!(self).to_string()))
-            .unwrap_or_else(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })
+        (StatusCode::CREATED, Json(self)).into_response()
     }
 }
 
@@ -81,41 +83,43 @@ impl From<User> for GetResponse {
 
 impl IntoResponse for GetResponse {
     fn into_response(self) -> Response {
-        Response::builder()
-            .status(200)
-            .body(Body::from(serde_json::json!(self).to_string()))
-            .unwrap_or_else(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })
+        (StatusCode::OK, Json(self)).into_response()
     }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetListRequest {
     /// The name to filter on
-    #[serde(default)]
+    #[schemars(with = "String")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// The email to filter on
-    #[serde(default)]
+    #[schemars(with = "String")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 }
 
 impl From<GetListRequest> for UserFilter {
     fn from(value: GetListRequest) -> Self {
         Self {
+            id: None,
             name: value.name,
             email: value.email,
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetListUser {
+    /// The user id
     pub id: UserId,
+    /// When the user was created
     pub created_at: String,
+    /// When the user was updated
     pub updated_at: String,
+    /// The user name
     pub name: String,
+    /// The user email
     pub email: String,
 }
 
@@ -133,8 +137,11 @@ impl From<User> for GetListUser {
 
 #[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
+    /// The list of users
     pub users: Vec<GetListUser>,
+    /// The cursor to get the next set of users
     pub next_cursor: Option<String>,
+    /// The cursor to get the previous set of users
     pub prev_cursor: Option<String>,
 }
 
@@ -175,37 +182,60 @@ impl GetListResponse {
 
 impl IntoResponse for GetListResponse {
     fn into_response(self) -> Response {
-        Response::builder()
-            .status(200)
-            .body(Body::from(serde_json::json!(self).to_string()))
-            .unwrap_or_else(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })
+        (StatusCode::OK, Json(self)).into_response()
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct UpdateRequest {}
+pub struct UpdateRequest {
+    /// The new user name
+    #[schemars(with = "String")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// The new user email
+    #[schemars(with = "String")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+}
+
+impl From<UpdateRequest> for UserUpdate {
+    fn from(value: UpdateRequest) -> Self {
+        Self {
+            name: value.name,
+            email: value.email,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateResponse {
+    /// The user id
     pub id: UserId,
+    /// When the user was created
     pub created_at: String,
+    /// When the user was updated
     pub updated_at: String,
+    /// The user name
     pub name: String,
+    /// The user email
     pub email: String,
 }
 
 impl IntoResponse for UpdateResponse {
     fn into_response(self) -> Response {
-        Response::builder()
-            .status(200)
-            .body(Body::from(serde_json::json!(self).to_string()))
-            .unwrap_or_else(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+impl From<User> for UpdateResponse {
+    fn from(value: User) -> Self {
+        Self {
+            id: value.id,
+            created_at: value.created_at.to_rfc3339(),
+            updated_at: value.updated_at.to_rfc3339(),
+            name: value.name,
+            email: value.email,
+        }
     }
 }
 

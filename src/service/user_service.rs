@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use sqlx::{Acquire, PgPool};
 use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::debug;
 
 use crate::{
     authentication::authenticated_user::AuthenticatedUser,
@@ -39,7 +38,7 @@ pub trait UserServiceCreate {
 
 #[async_trait]
 pub trait UserServiceUpdate {
-    async fn update(&self, update_model: UserUpdate) -> Result<User, ServiceError>;
+    async fn update(&self, id: UserId, update_model: UserUpdate) -> Result<User, ServiceError>;
 }
 
 #[async_trait]
@@ -97,7 +96,6 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         _limit: Option<i64>,
         _filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
-        debug!("GET LIST NONE");
         Err(ServiceError::Unauthorized)
     }
 }
@@ -108,7 +106,19 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: UserId) -> Result<User, ServiceError> {
-        todo!()
+        let pool = self.connection_pool.read().await;
+        let filter = UserFilter {
+            id: id.into(),
+            email: self.authenticated_user.email().to_owned().into(),
+            name: None,
+        };
+        let user = self
+            .user_repository
+            .get_list(pool.begin().await?, 0, Some(1), filter)
+            .await?
+            .pop()
+            .ok_or(ServiceError::NotFound)?;
+        Ok(user)
     }
 
     async fn get_list(
@@ -117,7 +127,6 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         limit: Option<i64>,
         mut filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
-        debug!("GET LIST");
         let pool = self.connection_pool.read().await;
         filter.email = self.authenticated_user.email().to_owned().into();
         let users = self
@@ -145,7 +154,6 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         limit: Option<i64>,
         filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
-        debug!("GET LIST ALL");
         let pool = self.connection_pool.read().await;
         let users = self
             .user_repository
@@ -185,7 +193,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
     UserServiceUpdate
     for UserService<Policy<UserResource, ActionSet<Read, Create, NoPermission, Delete>, Role>>
 {
-    async fn update(&self, _update_model: UserUpdate) -> Result<User, ServiceError> {
+    async fn update(&self, _id: UserId, _update_model: UserUpdate) -> Result<User, ServiceError> {
         Err(ServiceError::Unauthorized)
     }
 }
@@ -195,7 +203,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
     UserServiceUpdate
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
-    async fn update(&self, _update_model: UserUpdate) -> Result<User, ServiceError> {
+    async fn update(&self, _id: UserId, _update_model: UserUpdate) -> Result<User, ServiceError> {
         todo!()
     }
 }
@@ -205,12 +213,12 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
     UserServiceUpdate
     for UserService<Policy<UserResource, ActionSet<Read, Create, UpdateAll, Delete>, Role>>
 {
-    async fn update(&self, update_model: UserUpdate) -> Result<User, ServiceError> {
+    async fn update(&self, id: UserId, update_model: UserUpdate) -> Result<User, ServiceError> {
         let pool = self.connection_pool.read().await;
         let mut transaction = pool.begin().await?;
         let mut user = self
             .user_repository
-            .get(transaction.begin().await?, update_model.id)
+            .get(transaction.begin().await?, id)
             .await?;
         if let Some(name) = update_model.name {
             user.name = name;

@@ -7,9 +7,10 @@ use crate::{
     schema::{
         Pagination,
         user::{
-            CreateResponse as UserCreateResponse, DeleteResponse as UserDeleteResponse,
-            GetListRequest, GetListResponse as UserGetListResponse, GetResponse as UserGetResponse,
-            UpdateResponse as UserUpdateResponse,
+            CreateRequest as UserCreateRequest, CreateResponse as UserCreateResponse,
+            DeleteResponse as UserDeleteResponse, GetListRequest,
+            GetListResponse as UserGetListResponse, GetListUser, GetResponse as UserGetResponse,
+            UpdateRequest as UserUpdateRequest, UpdateResponse as UserUpdateResponse,
         },
     },
     service::user_service::UserServiceMethods,
@@ -30,7 +31,14 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tower_http::auth::AsyncRequireAuthorizationLayer;
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct PathUserId {
+    user_id: UserId,
+}
 
 pub struct UserApiState {
     pub user_service: Box<dyn UserServiceMethods + Send>,
@@ -99,14 +107,25 @@ impl UserApi {
             .tag("Users")
             .description("Get a list of users.")
             .security_requirement("OpenIdConnect")
-        // .parameter_untyped("name", |t| t.description("The name to filter on"))
+            .response_with::<200, Json<UserGetListResponse>, _>(|res| {
+                res.description("A list of users")
+                    .example(UserGetListResponse {
+                        users: vec![GetListUser::default(); 3],
+                        next_cursor: "<cursor to get the next set of users>".to_owned().into(),
+                        prev_cursor: "<cursor to get the previous set of users>"
+                            .to_owned()
+                            .into(),
+                    })
+            })
     }
 
     pub async fn get(
-        Path(user_id): Path<UserId>,
+        Path(PathUserId { user_id }): Path<PathUserId>,
         state: UserApiState,
     ) -> Result<UserGetResponse, ApiError> {
-        todo!()
+        let user = state.user_service.get(user_id).await?;
+        let response = user.into();
+        Ok(response)
     }
 
     pub fn get_docs(op: TransformOperation) -> TransformOperation {
@@ -131,8 +150,12 @@ impl UserApi {
             })
     }
 
-    pub async fn create(state: UserApiState) -> Result<UserCreateResponse, ApiError> {
-        todo!()
+    pub async fn create(
+        state: UserApiState,
+        Json(create_request): Json<UserCreateRequest>,
+    ) -> Result<UserCreateResponse, ApiError> {
+        let user = state.user_service.create(create_request.into()).await?;
+        Ok(user.into())
     }
 
     pub fn create_docs(op: TransformOperation) -> TransformOperation {
@@ -144,16 +167,24 @@ impl UserApi {
                 res.description("The newly created user")
                     .example(UserCreateResponse {
                         id: UserId::default(),
-                        created_at: DateTime::<Utc>::default().to_rfc3339(),
-                        updated_at: DateTime::<Utc>::default().to_rfc3339(),
+                        created_at: Utc::now().to_rfc3339(),
+                        updated_at: Utc::now().to_rfc3339(),
                         name: "User Name".into(),
                         email: "email@email.com".into(),
                     })
             })
     }
 
-    pub async fn update(state: UserApiState) -> Result<UserUpdateResponse, ApiError> {
-        todo!()
+    pub async fn update(
+        state: UserApiState,
+        Path(PathUserId { user_id }): Path<PathUserId>,
+        Json(update_request): Json<UserUpdateRequest>,
+    ) -> Result<UserUpdateResponse, ApiError> {
+        let user = state
+            .user_service
+            .update(user_id, update_request.into())
+            .await?;
+        Ok(user.into())
     }
 
     pub fn update_docs(op: TransformOperation) -> TransformOperation {
@@ -161,10 +192,30 @@ impl UserApi {
             .tag("Users")
             .description("Update a user")
             .security_requirement("OpenIdConnect")
+            .response_with::<200, Json<UserUpdateResponse>, _>(|res| {
+                res.description("The newly updated user")
+                    .example(UserUpdateResponse {
+                        id: UserId::default(),
+                        created_at: Utc::now().to_rfc3339(),
+                        updated_at: Utc::now().to_rfc3339(),
+                        name: "User Name".into(),
+                        email: "email@email.com".into(),
+                    })
+            })
+            .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
+                res.description("The user was not found.")
+                    .example(ApiErrorResponse {
+                        message: "User not found.".into(),
+                    })
+            })
     }
 
-    pub async fn delete(state: UserApiState) -> Result<UserDeleteResponse, ApiError> {
-        todo!()
+    pub async fn delete(
+        Path(PathUserId { user_id }): Path<PathUserId>,
+        state: UserApiState,
+    ) -> Result<UserDeleteResponse, ApiError> {
+        state.user_service.delete(user_id).await?;
+        Ok(UserDeleteResponse {})
     }
 
     pub fn delete_docs(op: TransformOperation) -> TransformOperation {
@@ -172,6 +223,15 @@ impl UserApi {
             .tag("Users")
             .description("Delete a user")
             .security_requirement("OpenIdConnect")
+            .response_with::<204, (), _>(|res| {
+                res.description("The user was successfully deleted.")
+            })
+            .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
+                res.description("The user was not found.")
+                    .example(ApiErrorResponse {
+                        message: "User not found.".into(),
+                    })
+            })
     }
 }
 

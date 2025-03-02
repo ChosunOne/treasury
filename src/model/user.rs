@@ -26,13 +26,13 @@ pub struct UserCreate {
 
 #[derive(Debug, Clone)]
 pub struct UserUpdate {
-    pub id: UserId,
     pub name: Option<String>,
     pub email: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct UserFilter {
+    pub id: Option<UserId>,
     pub name: Option<String>,
     pub email: Option<String>,
 }
