@@ -6,7 +6,7 @@ use axum::{
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::{
     model::{
@@ -45,7 +45,13 @@ impl From<User> for CreateResponse {
 
 impl IntoResponse for CreateResponse {
     fn into_response(self) -> Response {
-        (StatusCode::CREATED, self).into_response()
+        Response::builder()
+            .status(200)
+            .body(Body::from(serde_json::json!(self).to_string()))
+            .unwrap_or_else(|e| {
+                error!("{e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            })
     }
 }
 
@@ -75,13 +81,23 @@ impl From<User> for GetResponse {
 
 impl IntoResponse for GetResponse {
     fn into_response(self) -> Response {
-        (StatusCode::OK, self).into_response()
+        Response::builder()
+            .status(200)
+            .body(Body::from(serde_json::json!(self).to_string()))
+            .unwrap_or_else(|e| {
+                error!("{e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            })
     }
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetListRequest {
+    /// The name to filter on
+    #[serde(default)]
     pub name: Option<String>,
+    /// The email to filter on
+    #[serde(default)]
     pub email: Option<String>,
 }
 
@@ -118,7 +134,8 @@ impl From<User> for GetListUser {
 #[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
     pub users: Vec<GetListUser>,
-    pub cursor: String,
+    pub next_cursor: Option<String>,
+    pub prev_cursor: Option<String>,
 }
 
 impl GetListResponse {
@@ -128,9 +145,31 @@ impl GetListResponse {
         cursor_key: &CursorKey,
     ) -> Result<Self, EncryptionError> {
         let users = users.into_iter().map(|x| x.into()).collect::<Vec<_>>();
-        let offset = pagination.offset() + users.len() as i64;
-        let cursor = cursor_key.encrypt_base64(Cursor { offset })?;
-        Ok(Self { users, cursor })
+
+        let next_cursor = if users.is_empty() {
+            None
+        } else {
+            let next_offset = pagination.offset() + users.len() as i64;
+            Some(cursor_key.encrypt_base64(Cursor {
+                offset: next_offset,
+            })?)
+        };
+        let prev_cursor = if pagination.offset() == 0 {
+            None
+        } else {
+            let prev_offset = pagination
+                .offset()
+                .saturating_sub(pagination.max_items.unwrap_or(100))
+                .max(0);
+            Some(cursor_key.encrypt_base64(Cursor {
+                offset: prev_offset,
+            })?)
+        };
+        Ok(Self {
+            users,
+            next_cursor,
+            prev_cursor,
+        })
     }
 }
 
@@ -160,7 +199,13 @@ pub struct UpdateResponse {
 
 impl IntoResponse for UpdateResponse {
     fn into_response(self) -> Response {
-        (StatusCode::OK, self).into_response()
+        Response::builder()
+            .status(200)
+            .body(Body::from(serde_json::json!(self).to_string()))
+            .unwrap_or_else(|e| {
+                error!("{e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            })
     }
 }
 

@@ -39,7 +39,7 @@ impl Api for DocsApi {
                     Scalar::new("/docs/private/api.json")
                         .with_title("Treasury Docs")
                         .axum_handler(),
-                    |op| op.description("This documentation page"),
+                    |op| op.description("This documentation page").hidden(true),
                 ),
             )
             .api_route(
@@ -48,7 +48,7 @@ impl Api for DocsApi {
                     Redoc::new("/docs/private/api.json")
                         .with_title("Treasury Docs")
                         .axum_handler(),
-                    |op| op.description("This documentation page"),
+                    |op| op.description("This documentation page").hidden(true),
                 ),
             )
             .api_route(
@@ -57,7 +57,7 @@ impl Api for DocsApi {
                     Swagger::new("/docs/private/api.json")
                         .with_title("Treasury Docs")
                         .axum_handler(),
-                    |op| op.description("This documentation page"),
+                    |op| op.description("This documentation page").hidden(true),
                 ),
             )
             .route("/private/api.json", get(Self::serve_docs))

@@ -17,10 +17,18 @@ aide = { version = "^0.14.1", features = [
     "axum-ws",
     "axum-matched-path",
     "axum-form",
+    "axum-extra",
+    "axum-extra-headers",
+    "axum-extra-query",
+    "axum-extra-form",
+    "axum-extra-cookie",
+    "axum-extra-cookie-private",
+    "axum-extra-json-deserializer",
     "macros",
 ] }
 async-trait = "^0.1.86"
 axum = {version = "^0.8.1", features = ["http2", "macros"]}
+axum-extra = {version = "^0.10.0", features = ["tracing"]}
 base64 = "0.22.1"
 cached = {version = "^0.54.0", features = ["async"]}
 casbin = "^2.10.1"

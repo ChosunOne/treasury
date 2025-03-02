@@ -31,7 +31,6 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
-use tracing::debug;
 
 pub struct UserApiState {
     pub user_service: Box<dyn UserServiceMethods + Send>,
@@ -97,8 +96,10 @@ impl UserApi {
 
     pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
         op.id("get_list_user")
+            .tag("Users")
             .description("Get a list of users.")
             .security_requirement("OpenIdConnect")
+        // .parameter_untyped("name", |t| t.description("The name to filter on"))
     }
 
     pub async fn get(
@@ -110,6 +111,7 @@ impl UserApi {
 
     pub fn get_docs(op: TransformOperation) -> TransformOperation {
         op.id("get_user")
+            .tag("Users")
             .description("Get a user by id.")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<UserGetResponse>, _>(|res| {
@@ -135,6 +137,7 @@ impl UserApi {
 
     pub fn create_docs(op: TransformOperation) -> TransformOperation {
         op.id("create_user")
+            .tag("Users")
             .description("Create a new user")
             .security_requirement("OpenIdConnect")
             .response_with::<201, Json<UserCreateResponse>, _>(|res| {
@@ -155,6 +158,7 @@ impl UserApi {
 
     pub fn update_docs(op: TransformOperation) -> TransformOperation {
         op.id("update_user")
+            .tag("Users")
             .description("Update a user")
             .security_requirement("OpenIdConnect")
     }
@@ -165,6 +169,7 @@ impl UserApi {
 
     pub fn delete_docs(op: TransformOperation) -> TransformOperation {
         op.id("delete_user")
+            .tag("Users")
             .description("Delete a user")
             .security_requirement("OpenIdConnect")
     }
