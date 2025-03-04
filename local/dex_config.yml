@@ -45,12 +45,27 @@ connectors:
             groupAttr: member
         # The group name should be the "cn" value.
         nameAttr: cn
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: {{ .Env.DEX_GITHUB_CLIENT_ID }}
+      clientSecret: {{ .Env.DEX_GITHUB_CLIENT_SECRET }}
+      redirectURI: http://127.0.0.1:5556/dex/callback
+      loadAllGroups: true
+      teamNameField: slug
+      useLoginAsID: false
+      orgs:
+        - name: {{ .Env.DEX_GITHUB_ORG_NAME }}
+          teams:
+            - {{ .Env.DEX_GITHUB_ADMIN_TEAM_NAME }}
+            - {{ .Env.DEX_GITHUB_USER_TEAM_NAME }}
 staticClients:
-  - id: treasury
+  - id: {{ .Env.DEX_STATIC_CLIENT_ID }}
     redirectURIs:
       - 'http://0.0.0.0:8080/docs/oauth2-redirect'
       - 'http://127.0.0.1:8080/docs/oauth2-redirect'
       - 'http://localhost:8080/docs/oauth2-redirect'
       - 'http://localhost:8080/docs/oauth2-redirect.html'
     name: 'Treasury'
-    secret: treasury_secret
+    secret: {{ .Env.DEX_STATIC_CLIENT_SECRET }}

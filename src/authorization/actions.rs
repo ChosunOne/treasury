@@ -18,17 +18,49 @@ pub enum ReadLevel {
 }
 
 impl ReadLevel {
-    pub const fn levels() -> [ReadLevel; 3] {
-        [Self::ReadAll, Self::Read, Self::NoPermission]
+    pub fn levels() -> Vec<Self> {
+        let mut l = vec![Self::ReadAll, Self::Read, Self::NoPermission];
+        l.sort();
+        l
     }
 }
 
 impl From<ReadLevel> for &str {
     fn from(value: ReadLevel) -> Self {
         match value {
-            ReadLevel::NoPermission => "none",
-            ReadLevel::Read => "read",
             ReadLevel::ReadAll => "read_all",
+            ReadLevel::Read => "read",
+            ReadLevel::NoPermission => "none",
+        }
+    }
+}
+
+impl From<&str> for ReadLevel {
+    fn from(value: &str) -> Self {
+        match value {
+            "read" => ReadLevel::Read,
+            "read_all" => ReadLevel::ReadAll,
+            _ => ReadLevel::default(),
+        }
+    }
+}
+
+impl From<String> for ReadLevel {
+    fn from(value: String) -> Self {
+        match value {
+            val if val == *"read" => ReadLevel::Read,
+            val if val == *"read_all" => ReadLevel::ReadAll,
+            _ => ReadLevel::default(),
+        }
+    }
+}
+
+impl From<&String> for ReadLevel {
+    fn from(value: &String) -> Self {
+        match value {
+            val if val == "read" => ReadLevel::Read,
+            val if val == "read_all" => ReadLevel::ReadAll,
+            _ => ReadLevel::default(),
         }
     }
 }
@@ -41,16 +73,45 @@ pub enum CreateLevel {
 }
 
 impl CreateLevel {
-    pub const fn levels() -> [CreateLevel; 2] {
-        [Self::Create, Self::NoPermission]
+    pub fn levels() -> Vec<Self> {
+        let mut l = vec![Self::Create, Self::NoPermission];
+        l.sort();
+        l
     }
 }
 
 impl From<CreateLevel> for &str {
     fn from(value: CreateLevel) -> Self {
         match value {
-            CreateLevel::NoPermission => "none",
             CreateLevel::Create => "create",
+            CreateLevel::NoPermission => "none",
+        }
+    }
+}
+
+impl From<&str> for CreateLevel {
+    fn from(value: &str) -> Self {
+        match value {
+            "create" => CreateLevel::Create,
+            _ => CreateLevel::default(),
+        }
+    }
+}
+
+impl From<String> for CreateLevel {
+    fn from(value: String) -> Self {
+        match value {
+            val if val == *"create" => CreateLevel::Create,
+            _ => CreateLevel::default(),
+        }
+    }
+}
+
+impl From<&String> for CreateLevel {
+    fn from(value: &String) -> Self {
+        match value {
+            val if val == "create" => CreateLevel::Create,
+            _ => CreateLevel::default(),
         }
     }
 }
@@ -64,17 +125,49 @@ pub enum UpdateLevel {
 }
 
 impl UpdateLevel {
-    pub const fn levels() -> [UpdateLevel; 3] {
-        [Self::UpdateAll, Self::Update, Self::NoPermission]
+    pub fn levels() -> Vec<Self> {
+        let mut l = vec![Self::UpdateAll, Self::Update, Self::NoPermission];
+        l.sort();
+        l
     }
 }
 
 impl From<UpdateLevel> for &str {
     fn from(value: UpdateLevel) -> Self {
         match value {
-            UpdateLevel::NoPermission => "none",
-            UpdateLevel::Update => "update",
             UpdateLevel::UpdateAll => "update_all",
+            UpdateLevel::Update => "update",
+            UpdateLevel::NoPermission => "none",
+        }
+    }
+}
+
+impl From<&str> for UpdateLevel {
+    fn from(value: &str) -> Self {
+        match value {
+            "update" => UpdateLevel::Update,
+            "update_all" => UpdateLevel::UpdateAll,
+            _ => UpdateLevel::default(),
+        }
+    }
+}
+
+impl From<String> for UpdateLevel {
+    fn from(value: String) -> Self {
+        match value {
+            val if val == *"update" => UpdateLevel::Update,
+            val if val == *"update_all" => UpdateLevel::UpdateAll,
+            _ => UpdateLevel::default(),
+        }
+    }
+}
+
+impl From<&String> for UpdateLevel {
+    fn from(value: &String) -> Self {
+        match value {
+            val if val == "update" => UpdateLevel::Update,
+            val if val == "update_all" => UpdateLevel::UpdateAll,
+            _ => UpdateLevel::default(),
         }
     }
 }
@@ -88,17 +181,49 @@ pub enum DeleteLevel {
 }
 
 impl DeleteLevel {
-    pub const fn levels() -> [DeleteLevel; 3] {
-        [Self::DeleteAll, Self::Delete, Self::NoPermission]
+    pub fn levels() -> Vec<Self> {
+        let mut l = vec![Self::DeleteAll, Self::Delete, Self::NoPermission];
+        l.sort();
+        l
     }
 }
 
 impl From<DeleteLevel> for &str {
     fn from(value: DeleteLevel) -> Self {
         match value {
-            DeleteLevel::NoPermission => "none",
-            DeleteLevel::Delete => "delete",
             DeleteLevel::DeleteAll => "delete_all",
+            DeleteLevel::Delete => "delete",
+            DeleteLevel::NoPermission => "none",
+        }
+    }
+}
+
+impl From<&str> for DeleteLevel {
+    fn from(value: &str) -> Self {
+        match value {
+            "delete" => DeleteLevel::Delete,
+            "delete_all" => DeleteLevel::DeleteAll,
+            _ => DeleteLevel::default(),
+        }
+    }
+}
+
+impl From<String> for DeleteLevel {
+    fn from(value: String) -> Self {
+        match value {
+            val if val == *"delete" => DeleteLevel::Delete,
+            val if val == *"delete_all" => DeleteLevel::DeleteAll,
+            _ => DeleteLevel::default(),
+        }
+    }
+}
+
+impl From<&String> for DeleteLevel {
+    fn from(value: &String) -> Self {
+        match value {
+            val if val == "delete" => DeleteLevel::Delete,
+            val if val == "delete_all" => DeleteLevel::DeleteAll,
+            _ => DeleteLevel::default(),
         }
     }
 }

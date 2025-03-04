@@ -67,12 +67,17 @@ impl UserServiceFactory {
         user: AuthenticatedUser,
         connection_pool: Arc<RwLock<PgPool>>,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
-        debug!("User Groups: {:?}", user.groups());
         let enforcer = self.enforcer.read().await;
+        let groups = user
+            .groups()
+            .iter()
+            .flat_map(|g| g.split(":").last())
+            .collect::<Vec<_>>();
+        debug!("User Groups: {:?}", groups);
         let mut read_level = ReadLevel::default();
         'outer: for level in ReadLevel::levels() {
             let level_str: &str = level.into();
-            for group in user.groups() {
+            for group in groups.iter() {
                 if enforcer.enforce((group, "users", level_str))? {
                     read_level = level;
                     break 'outer;
@@ -83,7 +88,7 @@ impl UserServiceFactory {
         let mut create_level = CreateLevel::default();
         'outer: for level in CreateLevel::levels() {
             let level_str: &str = level.into();
-            for group in user.groups() {
+            for group in groups.iter() {
                 if enforcer.enforce((group, "users", level_str))? {
                     create_level = level;
                     break 'outer;
@@ -95,7 +100,7 @@ impl UserServiceFactory {
         let mut update_level = UpdateLevel::default();
         'outer: for level in UpdateLevel::levels() {
             let level_str: &str = level.into();
-            for group in user.groups() {
+            for group in groups.iter() {
                 if enforcer.enforce((group, "users", level_str))? {
                     update_level = level;
                     break 'outer;
@@ -107,7 +112,7 @@ impl UserServiceFactory {
         let mut delete_level = DeleteLevel::default();
         'outer: for level in DeleteLevel::levels() {
             let level_str: &str = level.into();
-            for group in user.groups() {
+            for group in groups.iter() {
                 if enforcer.enforce((group, "users", level_str))? {
                     delete_level = level;
                     break 'outer;
