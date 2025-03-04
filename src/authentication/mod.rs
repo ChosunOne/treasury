@@ -1,5 +1,6 @@
-pub mod authenticated_user;
+pub mod authenticated_token;
 pub mod authenticator;
+pub mod registered_user;
 pub mod well_known;
 
 use thiserror::Error;

@@ -7,6 +7,8 @@ use crate::resource::RepositoryError;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
+    #[error("User is already registered.")]
+    AlreadyRegistered,
     #[error("Item not found.")]
     NotFound,
     #[error("Unhandled repository error: {0}")]

@@ -2,8 +2,14 @@ use std::sync::Arc;
 
 use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState},
-    authentication::{authenticated_user::AuthenticatedUser, authenticator::Authenticator},
-    model::{cursor_key::CursorKey, user::UserId},
+    authentication::{
+        authenticated_token::AuthenticatedToken, authenticator::Authenticator,
+        registered_user::RegisteredUser,
+    },
+    model::{
+        cursor_key::CursorKey,
+        user::{UserCreate, UserId},
+    },
     schema::{
         Pagination,
         user::{
@@ -41,6 +47,7 @@ pub struct PathUserId {
 }
 
 pub struct UserApiState {
+    pub authenticated_token: AuthenticatedToken,
     pub user_service: Box<dyn UserServiceMethods + Send>,
 }
 
@@ -57,9 +64,9 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
             .await
             .map_err(|err| err.into_response())?;
 
-        let authenticated_user = parts
+        let authenticated_token = parts
             .extensions
-            .get::<AuthenticatedUser>()
+            .get::<AuthenticatedToken>()
             .cloned()
             .ok_or((
                 StatusCode::UNAUTHORIZED,
@@ -67,9 +74,15 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
             ))
             .map_err(|err| err.into_response())?;
 
+        let registered_user = parts.extract::<RegisteredUser>().await.ok();
+
         let user_service = state
             .user_service_factory
-            .build(authenticated_user, Arc::clone(&state.connection_pool))
+            .build(
+                authenticated_token.clone(),
+                registered_user,
+                Arc::clone(&state.connection_pool),
+            )
             .await
             .map_err(|_| {
                 (
@@ -79,7 +92,10 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
                     .into_response()
             })?;
 
-        Ok(Self { user_service })
+        Ok(Self {
+            authenticated_token,
+            user_service,
+        })
     }
 }
 
@@ -154,7 +170,13 @@ impl UserApi {
         state: UserApiState,
         Json(create_request): Json<UserCreateRequest>,
     ) -> Result<UserCreateResponse, ApiError> {
-        let user = state.user_service.create(create_request.into()).await?;
+        let user_create = UserCreate {
+            name: create_request.name,
+            email: state.authenticated_token.email().to_owned(),
+            iss: state.authenticated_token.iss().to_owned(),
+            sub: state.authenticated_token.sub().to_owned(),
+        };
+        let user = state.user_service.create(user_create).await?;
         Ok(user.into())
     }
 

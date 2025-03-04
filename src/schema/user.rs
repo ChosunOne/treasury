@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     model::{
         cursor_key::{CursorKey, EncryptionError},
-        user::{User, UserCreate, UserFilter, UserId, UserUpdate},
+        user::{User, UserFilter, UserId, UserUpdate},
     },
     schema::{Cursor, Pagination},
 };
@@ -18,16 +18,6 @@ use crate::{
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
     pub name: String,
-    pub email: String,
-}
-
-impl From<CreateRequest> for UserCreate {
-    fn from(value: CreateRequest) -> Self {
-        Self {
-            name: value.name,
-            email: value.email,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
@@ -105,6 +95,8 @@ impl From<GetListRequest> for UserFilter {
             id: None,
             name: value.name,
             email: value.email,
+            iss: None,
+            sub: None,
         }
     }
 }
@@ -192,17 +184,13 @@ pub struct UpdateRequest {
     #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// The new user email
-    #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
 }
 
 impl From<UpdateRequest> for UserUpdate {
     fn from(value: UpdateRequest) -> Self {
         Self {
             name: value.name,
-            email: value.email,
+            email: None,
         }
     }
 }

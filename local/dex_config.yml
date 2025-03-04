@@ -60,6 +60,14 @@ connectors:
           teams:
             - {{ .Env.DEX_GITHUB_ADMIN_TEAM_NAME }}
             - {{ .Env.DEX_GITHUB_USER_TEAM_NAME }}
+  - type: google
+    id: google
+    name: Google
+    config:
+      clientID: {{ .Env.DEX_GOOGLE_CLIENT_ID }}
+      clientSecret: {{ .Env.DEX_GOOGLE_CLIENT_SECRET }}
+      redirectURI: http://127.0.0.1:5556/dex/callback
+      promptType: ""
 staticClients:
   - id: {{ .Env.DEX_STATIC_CLIENT_ID }}
     redirectURIs:

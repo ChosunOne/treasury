@@ -4,7 +4,7 @@ use std::{marker::PhantomData, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
-    authentication::authenticated_user::AuthenticatedUser,
+    authentication::registered_user::RegisteredUser,
     authorization::{
         actions::{
             ActionSet, Create, Delete, DeleteAll, NoPermission, Read, ReadAll, Update, UpdateAll,
@@ -60,24 +60,30 @@ impl<T: UserServiceGet + UserServiceCreate + UserServiceUpdate + UserServiceDele
 
 #[derive(Debug, Clone)]
 pub struct UserService<Policy> {
-    authenticated_user: AuthenticatedUser,
     connection_pool: Arc<RwLock<PgPool>>,
     user_repository: UserRepository,
+    registered_user: Option<RegisteredUser>,
     policy: PhantomData<Policy>,
 }
 
 impl<Policy> UserService<Policy> {
     pub fn new(
-        authenticated_user: AuthenticatedUser,
         connection_pool: Arc<RwLock<PgPool>>,
         user_repository: UserRepository,
+        registered_user: Option<RegisteredUser>,
     ) -> Self {
         Self {
-            authenticated_user,
             connection_pool,
             user_repository,
+            registered_user,
             policy: PhantomData,
         }
+    }
+
+    fn registered_user(&self) -> Result<RegisteredUser, ServiceError> {
+        self.registered_user
+            .clone()
+            .ok_or(ServiceError::Unauthorized)
     }
 }
 
@@ -106,34 +112,28 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: UserId) -> Result<User, ServiceError> {
-        let pool = self.connection_pool.read().await;
-        let filter = UserFilter {
-            id: id.into(),
-            email: self.authenticated_user.email().to_owned().into(),
-            name: None,
-        };
-        let user = self
-            .user_repository
-            .get_list(pool.begin().await?, 0, Some(1), filter)
-            .await?
-            .pop()
-            .ok_or(ServiceError::NotFound)?;
-        Ok(user)
+        let user = self.registered_user()?.user;
+        if id != user.id {
+            return Err(ServiceError::NotFound);
+        }
+        // We've already hit the database at this point so the user is up
+        // to date.
+        return Ok(user.clone());
     }
 
     async fn get_list(
         &self,
         offset: i64,
-        limit: Option<i64>,
-        mut filter: UserFilter,
+        _limit: Option<i64>,
+        _filter: UserFilter,
     ) -> Result<Vec<User>, ServiceError> {
-        let pool = self.connection_pool.read().await;
-        filter.email = self.authenticated_user.email().to_owned().into();
-        let users = self
-            .user_repository
-            .get_list(pool.begin().await?, offset, limit, filter)
-            .await?;
-        Ok(users)
+        let user = self.registered_user()?.user;
+        if offset > 1 {
+            return Ok(vec![]);
+        }
+        // We've already hit the database, and the user is only permitted
+        // to see their own user.
+        Ok(vec![user.clone()])
     }
 }
 
@@ -179,6 +179,10 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: UserCreate) -> Result<User, ServiceError> {
+        if self.registered_user.is_some() {
+            // User is already registered, don't allow re-registration
+            return Err(ServiceError::AlreadyRegistered);
+        }
         let pool = self.connection_pool.read().await;
         let user = self
             .user_repository
@@ -203,8 +207,25 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
     UserServiceUpdate
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
-    async fn update(&self, _id: UserId, _update_model: UserUpdate) -> Result<User, ServiceError> {
-        todo!()
+    async fn update(&self, id: UserId, update_model: UserUpdate) -> Result<User, ServiceError> {
+        let mut user = self.registered_user()?.user;
+        if id != user.id {
+            return Err(ServiceError::NotFound);
+        }
+        if let Some(name) = update_model.name {
+            user.name = name;
+        }
+        if let Some(email) = update_model.email {
+            user.email = email;
+        }
+
+        let pool = self.connection_pool.read().await;
+        let mut transaction = pool.begin().await?;
+        let user = self
+            .user_repository
+            .update(transaction.begin().await?, user)
+            .await?;
+        Ok(user)
     }
 }
 
@@ -250,8 +271,15 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
     UserServiceDelete
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
-    async fn delete(&self, _id: UserId) -> Result<User, ServiceError> {
-        todo!()
+    async fn delete(&self, id: UserId) -> Result<User, ServiceError> {
+        let user = self.registered_user()?.user;
+        if id != user.id {
+            return Err(ServiceError::NotFound);
+        }
+        let pool = self.connection_pool.read().await;
+        let transaction = pool.begin().await?;
+        let user = self.user_repository.delete(transaction, id).await?;
+        Ok(user)
     }
 }
 

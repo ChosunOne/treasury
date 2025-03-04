@@ -8,7 +8,8 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::debug;
 
-use crate::authentication::authenticated_user::AuthenticatedUser;
+use crate::authentication::authenticated_token::AuthenticatedToken;
+use crate::authentication::registered_user::RegisteredUser;
 use crate::authorization::actions::{
     ActionSet, Create, CreateLevel, Delete, DeleteAll, DeleteLevel, NoPermission, Read, ReadAll,
     ReadLevel, Update, UpdateAll, UpdateLevel,
@@ -20,7 +21,7 @@ use crate::resource::user_repository::UserRepository;
 use crate::service::user_service::{UserService, UserServiceMethods};
 
 macro_rules! generate_permission_combinations {
-    ($read_level:expr, $create_level:expr, $update_level:expr, $delete_level:expr, $user:expr, $pool:expr;
+    ($read_level:expr, $create_level:expr, $update_level:expr, $delete_level:expr, $pool:expr, $user:expr;
      $([ $read:ident, $create:ident, $update:ident, $delete:ident ]),* $(,)*) => {
         match ($read_level, $create_level, $update_level, $delete_level) {
             $(
@@ -34,7 +35,7 @@ macro_rules! generate_permission_combinations {
                             $delete
                         >,
                         Any
-                    >>::new($user, $pool, UserRepository {})))
+                    >>::new($pool, UserRepository {}, $user)))
                 },
             )*
         }
@@ -64,17 +65,32 @@ impl UserServiceFactory {
 
     pub async fn build(
         &self,
-        user: AuthenticatedUser,
+        token: AuthenticatedToken,
+        user: Option<RegisteredUser>,
         connection_pool: Arc<RwLock<PgPool>>,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
         let enforcer = self.enforcer.read().await;
-        let groups = user
+        let mut groups = token
             .groups()
             .iter()
             .flat_map(|g| g.split(":").last())
             .collect::<Vec<_>>();
+        // We want to allow google login so we add the "user" group
+        // here if the groups claim is empty
+        if user.is_some() && groups.is_empty() {
+            groups.push("user");
+        }
         debug!("User Groups: {:?}", groups);
         let mut read_level = ReadLevel::default();
+        let mut create_level = CreateLevel::default();
+        let mut update_level = UpdateLevel::default();
+        let mut delete_level = DeleteLevel::default();
+
+        // We want to allow new user registration
+        if groups.is_empty() && user.is_none() && token.email_verified() {
+            create_level = CreateLevel::Create;
+        }
+
         'outer: for level in ReadLevel::levels() {
             let level_str: &str = level.into();
             for group in groups.iter() {
@@ -85,7 +101,6 @@ impl UserServiceFactory {
             }
         }
         debug!("Read level: {read_level:?}");
-        let mut create_level = CreateLevel::default();
         'outer: for level in CreateLevel::levels() {
             let level_str: &str = level.into();
             for group in groups.iter() {
@@ -97,7 +112,6 @@ impl UserServiceFactory {
         }
 
         debug!("Create level: {create_level:?}");
-        let mut update_level = UpdateLevel::default();
         'outer: for level in UpdateLevel::levels() {
             let level_str: &str = level.into();
             for group in groups.iter() {
@@ -109,7 +123,6 @@ impl UserServiceFactory {
         }
 
         debug!("Update level: {update_level:?}");
-        let mut delete_level = DeleteLevel::default();
         'outer: for level in DeleteLevel::levels() {
             let level_str: &str = level.into();
             for group in groups.iter() {
@@ -122,7 +135,7 @@ impl UserServiceFactory {
         debug!("Delete level: {delete_level:?}");
 
         generate_permission_combinations!(
-            read_level, create_level, update_level, delete_level, user, connection_pool;
+            read_level, create_level, update_level, delete_level, connection_pool, user;
             [NoPermission, NoPermission, NoPermission, NoPermission],
             [NoPermission, NoPermission, NoPermission, Delete],
             [NoPermission, NoPermission, NoPermission, DeleteAll],

@@ -2,7 +2,7 @@ use std::{env::var, sync::OnceLock};
 
 use crate::authentication::{
     AuthenticationError,
-    authenticated_user::{AuthenticatedUser, Claims},
+    authenticated_token::{AuthenticatedToken, Claims},
     well_known::WellKnown,
 };
 use axum::{
@@ -49,7 +49,7 @@ async fn get_jwk_set(well_known: WellKnown) -> Result<JwkSet, AuthenticationErro
 impl Authenticator {
     pub async fn authenticate(
         authorization_header: &str,
-    ) -> Result<AuthenticatedUser, AuthenticationError> {
+    ) -> Result<AuthenticatedToken, AuthenticationError> {
         let mut tokens = authorization_header.split_whitespace();
         if "Bearer" != tokens.next().ok_or(AuthenticationError::MissingBearer)? {
             return Err(AuthenticationError::MissingBearer);
@@ -73,9 +73,16 @@ impl Authenticator {
         });
         validation.set_issuer(&[issuer]);
         validation.set_audience(&[audience]);
-        validation.set_required_spec_claims(&["iss", "exp", "aud"]);
-        let token_data = decode::<Claims>(token, &decoding_key, &validation)?;
-        Ok(AuthenticatedUser::new(token_data.claims))
+        validation.set_required_spec_claims(&[
+            "iss",
+            "exp",
+            "aud",
+            "email",
+            "email_verified",
+            "sub",
+        ]);
+        let claims = decode::<Claims>(token, &decoding_key, &validation)?.claims;
+        Ok(AuthenticatedToken::new(claims))
     }
 }
 

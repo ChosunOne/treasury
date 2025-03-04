@@ -1,0 +1,4 @@
+ALTER TABLE "user"
+DROP CONSTRAINT uq_user_iss_sub,
+DROP COLUMN iss,
+DROP COLUMN sub;

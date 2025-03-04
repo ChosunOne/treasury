@@ -89,12 +89,14 @@ impl CreateRepository<UserCreate, User> for UserRepository {
         let new_user = query_as!(
             User,
             r#"
-            INSERT INTO "user" (name, email) 
-            VALUES ($1, $2) 
+            INSERT INTO "user" (name, email, iss, sub) 
+            VALUES ($1, $2, $3, $4) 
             RETURNING *
             "#,
             create_model.name,
-            create_model.email
+            create_model.email,
+            create_model.iss,
+            create_model.sub,
         )
         .fetch_one(&mut *session)
         .await?;

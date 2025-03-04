@@ -143,6 +143,9 @@ impl IntoResponse for ApiError {
         let (status, message) = match self {
             Self::JsonRejection(rejection) => (rejection.status(), rejection.body_text()),
             Self::Service(service_error) => match service_error {
+                ServiceError::AlreadyRegistered => {
+                    (StatusCode::CONFLICT, "User is already registered".into())
+                }
                 ServiceError::NotFound => (StatusCode::NOT_FOUND, "Not found.".into()),
                 ServiceError::Unauthorized => (StatusCode::FORBIDDEN, "Forbidden".into()),
                 e => {
