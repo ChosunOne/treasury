@@ -2,13 +2,11 @@ use sqlx::{PgTransaction, QueryBuilder, query_as};
 
 use crate::model::user::{User, UserCreate, UserFilter, UserId};
 use crate::resource::{
-    CreateRepository, DeleteRepository, GetListRepository, GetRepository, Repository,
+    CreateRepository, DeleteRepository, GetListRepository, GetRepository, MAX_LIMIT, Repository,
     RepositoryError, UpdateRepository,
 };
 
-const MAX_LIMIT: i64 = 100;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct UserRepository;
 
 impl GetRepository<UserId, User> for UserRepository {

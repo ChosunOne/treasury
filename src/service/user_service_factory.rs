@@ -88,7 +88,7 @@ impl UserServiceFactory {
 
         // We want to allow new user registration
         if groups.is_empty() && user.is_none() && token.email_verified() {
-            create_level = CreateLevel::Create;
+            groups.push("unregistered_user")
         }
 
         'outer: for level in ReadLevel::levels() {

@@ -1,9 +1,12 @@
 pub mod cursor_key_repository;
+pub mod institution_repository;
 pub mod user_repository;
 
 use derive_more::Display;
 use sqlx::PgTransaction;
 use thiserror::Error;
+
+pub const MAX_LIMIT: i64 = 100;
 
 #[derive(Error, Debug, Display)]
 pub enum RepositoryError {
