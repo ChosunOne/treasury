@@ -2,6 +2,7 @@
 name = "treasury"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL-3.0"
 
 [dependencies]
 aes-gcm-siv = "0.11.1"
@@ -26,11 +27,11 @@ aide = { version = "^0.14.1", features = [
     "axum-extra-json-deserializer",
     "macros",
 ] }
-async-trait = "^0.1.86"
+async-trait = "^0.1.87"
 axum = {version = "^0.8.1", features = ["http2", "macros"]}
 axum-extra = {version = "^0.10.0", features = ["tracing"]}
 base64 = "0.22.1"
-cached = {version = "^0.54.0", features = ["async"]}
+cached = {version = "^0.55.1", features = ["async"]}
 casbin = "^2.10.1"
 chrono = "^0.4.40"
 crypto-common = "^0.1.6"
@@ -45,7 +46,7 @@ schemars = {version = "^0.8.22", features = ["chrono", "uuid1", "preserve_order"
 serde = {version = "^1.0.218", features = ["derive"]}
 serde_json = {version = "^1.0.139", features = ["preserve_order"]}
 sqlx = {version = "^0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"]}
-thiserror = "^2.0.11"
+thiserror = "^2.0.12"
 tokio = {version = "^1.43.0", features = ["full"]}
 tower = "^0.5.2"
 tower-http = {version = "^0.6.2", features = ["trace", "auth", "cors", "compression-gzip", "timeout"]}
