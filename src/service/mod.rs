@@ -1,3 +1,5 @@
+pub mod institution_service;
+pub mod institution_service_factory;
 pub mod user_service;
 pub mod user_service_factory;
 
@@ -26,4 +28,10 @@ impl From<RepositoryError> for ServiceError {
             e => Self::UnhandledRepositoryError(e),
         }
     }
+}
+
+#[derive(Debug, Error)]
+pub enum ServiceFactoryError {
+    #[error("{0}")]
+    Policy(#[from] casbin::Error),
 }

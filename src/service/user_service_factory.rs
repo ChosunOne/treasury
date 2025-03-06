@@ -2,9 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use casbin::{CoreApi, Enforcer};
-use derive_more::Display;
 use sqlx::PgPool;
-use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::debug;
 
@@ -18,6 +16,7 @@ use crate::authorization::policy::Policy;
 use crate::authorization::resources::User as UserResource;
 use crate::authorization::roles::Any;
 use crate::resource::user_repository::UserRepository;
+use crate::service::ServiceFactoryError;
 use crate::service::user_service::{UserService, UserServiceMethods};
 
 macro_rules! generate_permission_combinations {
@@ -40,11 +39,6 @@ macro_rules! generate_permission_combinations {
             )*
         }
     };
-}
-
-#[derive(Debug, Error, Display)]
-pub enum ServiceFactoryError {
-    Policy(#[from] casbin::Error),
 }
 
 #[derive(Clone)]

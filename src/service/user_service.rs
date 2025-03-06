@@ -225,6 +225,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
             .user_repository
             .update(transaction.begin().await?, user)
             .await?;
+        transaction.commit().await?;
         Ok(user)
     }
 }
@@ -277,8 +278,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
             return Err(ServiceError::NotFound);
         }
         let pool = self.connection_pool.read().await;
-        let transaction = pool.begin().await?;
-        let user = self.user_repository.delete(transaction, id).await?;
+        let user = self.user_repository.delete(pool.begin().await?, id).await?;
         Ok(user)
     }
 }
