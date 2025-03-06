@@ -1,5 +1,5 @@
 p, unregistered_user, users, create
 p, user, *, read
-p, user, *, update
-p, user, *, delete
+p, user, users, update
+p, user, users, delete
 p, admin, *, *

@@ -42,10 +42,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
+use tracing::error;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct PathUserId {
-    user_id: UserId,
+    id: UserId,
 }
 
 pub struct UserApiState {
@@ -65,14 +66,8 @@ impl FromRequestParts<Arc<AppState>> for UserApiState {
         use axum::RequestPartsExt;
 
         let authenticated_token = parts
-            .extensions
-            .get::<AuthenticatedToken>()
-            .cloned()
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                "User not authenticated".to_owned(),
-            ))
-            .map_err(|err| err.into_response())?;
+            .extract_with_state::<AuthenticatedToken, _>(state)
+            .await?;
 
         let registered_user = parts
             .extract_with_state::<RegisteredUser, _>(state)
@@ -87,12 +82,9 @@ impl FromRequestParts<Arc<AppState>> for UserApiState {
                 Arc::clone(&state.connection_pool),
             )
             .await
-            .map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to process user policy",
-                )
-                    .into_response()
+            .map_err(|e| {
+                error!("{e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
             })?;
 
         Ok(Self {
@@ -139,10 +131,10 @@ impl UserApi {
     }
 
     pub async fn get(
-        Path(PathUserId { user_id }): Path<PathUserId>,
+        Path(PathUserId { id }): Path<PathUserId>,
         state: UserApiState,
     ) -> Result<UserGetResponse, ApiError> {
-        let user = state.user_service.get(user_id).await?;
+        let user = state.user_service.get(id).await?;
         let response = user.into();
         Ok(response)
     }
@@ -202,13 +194,10 @@ impl UserApi {
 
     pub async fn update(
         state: UserApiState,
-        Path(PathUserId { user_id }): Path<PathUserId>,
+        Path(PathUserId { id }): Path<PathUserId>,
         Json(update_request): Json<UserUpdateRequest>,
     ) -> Result<UserUpdateResponse, ApiError> {
-        let user = state
-            .user_service
-            .update(user_id, update_request.into())
-            .await?;
+        let user = state.user_service.update(id, update_request.into()).await?;
         Ok(user.into())
     }
 
@@ -236,10 +225,10 @@ impl UserApi {
     }
 
     pub async fn delete(
-        Path(PathUserId { user_id }): Path<PathUserId>,
+        Path(PathUserId { id }): Path<PathUserId>,
         state: UserApiState,
     ) -> Result<UserDeleteResponse, ApiError> {
-        state.user_service.delete(user_id).await?;
+        state.user_service.delete(id).await?;
         Ok(UserDeleteResponse {})
     }
 
@@ -264,10 +253,10 @@ impl Api for UserApi {
     fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
         ApiRouter::new()
             .api_route("/", get_with(Self::get_list, Self::get_list_docs))
-            .api_route("/{user_id}", get_with(Self::get, Self::get_docs))
+            .api_route("/{id}", get_with(Self::get, Self::get_docs))
             .api_route("/", post_with(Self::create, Self::create_docs))
-            .api_route("/{user_id}", patch_with(Self::update, Self::update_docs))
-            .api_route("/{user_id}", delete_with(Self::delete, Self::delete_docs))
+            .api_route("/{id}", patch_with(Self::update, Self::update_docs))
+            .api_route("/{id}", delete_with(Self::delete, Self::delete_docs))
             .layer(
                 ServiceBuilder::new()
                     .layer(AsyncRequireAuthorizationLayer::new(Authenticator))

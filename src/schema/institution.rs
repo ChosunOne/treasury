@@ -10,39 +10,39 @@ use serde::{Deserialize, Serialize};
 use crate::{
     model::{
         cursor_key::{CursorKey, EncryptionError},
-        user::{User, UserFilter, UserId, UserUpdate},
+        institution::{
+            Institution, InstitutionCreate, InstitutionFilter, InstitutionId, InstitutionUpdate,
+        },
     },
     schema::{Cursor, Pagination},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
-    /// The user name
     pub name: String,
+}
+
+impl From<CreateRequest> for InstitutionCreate {
+    fn from(value: CreateRequest) -> Self {
+        Self { name: value.name }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateResponse {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+    pub id: InstitutionId,
     pub created_at: String,
-    /// When the user was updated
     pub updated_at: String,
-    /// The user name
     pub name: String,
-    /// The user email
-    pub email: String,
 }
 
-impl From<User> for CreateResponse {
-    fn from(value: User) -> Self {
+impl From<Institution> for CreateResponse {
+    fn from(value: Institution) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
         }
     }
 }
@@ -58,26 +58,19 @@ pub struct GetRequest {}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetResponse {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+    pub id: InstitutionId,
     pub created_at: String,
-    /// When the user was updated
     pub updated_at: String,
-    /// The user name
     pub name: String,
-    /// The user email
-    pub email: String,
 }
 
-impl From<User> for GetResponse {
-    fn from(value: User) -> Self {
+impl From<Institution> for GetResponse {
+    fn from(value: Institution) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
         }
     }
 }
@@ -94,54 +87,41 @@ pub struct GetListRequest {
     #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// The email to filter on
-    #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
 }
 
-impl From<GetListRequest> for UserFilter {
+impl From<GetListRequest> for InstitutionFilter {
     fn from(value: GetListRequest) -> Self {
-        Self {
-            id: None,
-            name: value.name,
-            email: value.email,
-            iss: None,
-            sub: None,
-        }
+        Self { name: value.name }
     }
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListUser {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+pub struct GetListInstitution {
+    /// The institution id
+    pub id: InstitutionId,
+    /// When the institution was created
     pub created_at: String,
-    /// When the user was updated
+    /// When the institution was updated
     pub updated_at: String,
-    /// The user name
+    /// The institution name
     pub name: String,
-    /// The user email
-    pub email: String,
 }
 
-impl From<User> for GetListUser {
-    fn from(value: User) -> Self {
+impl From<Institution> for GetListInstitution {
+    fn from(value: Institution) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
-    /// The list of users
-    pub users: Vec<GetListUser>,
+    /// The list of institutions
+    pub institutions: Vec<GetListInstitution>,
     /// The cursor to get the next set of users
     pub next_cursor: Option<String>,
     /// The cursor to get the previous set of users
@@ -150,16 +130,19 @@ pub struct GetListResponse {
 
 impl GetListResponse {
     pub fn new(
-        users: Vec<User>,
+        institutions: Vec<Institution>,
         pagination: &Pagination,
         cursor_key: &CursorKey,
     ) -> Result<Self, EncryptionError> {
-        let users = users.into_iter().map(|x| x.into()).collect::<Vec<_>>();
+        let institutions = institutions
+            .into_iter()
+            .map(|x| x.into())
+            .collect::<Vec<_>>();
 
-        let next_cursor = if users.is_empty() {
+        let next_cursor = if institutions.is_empty() {
             None
         } else {
-            let next_offset = pagination.offset() + users.len() as i64;
+            let next_offset = pagination.offset() + institutions.len() as i64;
             Some(cursor_key.encrypt_base64(Cursor {
                 offset: next_offset,
             })?)
@@ -176,7 +159,7 @@ impl GetListResponse {
             })?)
         };
         Ok(Self {
-            users,
+            institutions,
             next_cursor,
             prev_cursor,
         })
@@ -191,33 +174,28 @@ impl IntoResponse for GetListResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateRequest {
-    /// The new user name
+    /// The new institution name
     #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
-impl From<UpdateRequest> for UserUpdate {
+impl From<UpdateRequest> for InstitutionUpdate {
     fn from(value: UpdateRequest) -> Self {
-        Self {
-            name: value.name,
-            email: None,
-        }
+        Self { name: value.name }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateResponse {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+    /// The institution id
+    pub id: InstitutionId,
+    /// When the institution was created
     pub created_at: String,
-    /// When the user was updated
+    /// When the institution was updated
     pub updated_at: String,
-    /// The user name
+    /// The institution name
     pub name: String,
-    /// The user email
-    pub email: String,
 }
 
 impl IntoResponse for UpdateResponse {
@@ -226,14 +204,13 @@ impl IntoResponse for UpdateResponse {
     }
 }
 
-impl From<User> for UpdateResponse {
-    fn from(value: User) -> Self {
+impl From<Institution> for UpdateResponse {
+    fn from(value: Institution) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
         }
     }
 }

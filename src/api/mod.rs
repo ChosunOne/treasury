@@ -33,12 +33,16 @@ use tracing::error;
 use user_api::UserApi;
 
 use crate::{
+    api::institution_api::InstitutionApi,
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::AUTH_WELL_KNOWN_URI,
         registered_user::RegisteredUser,
     },
     model::cursor_key::EncryptionError,
-    service::{ServiceError, user_service_factory::UserServiceFactory},
+    service::{
+        ServiceError, institution_service_factory::InstitutionServiceFactory,
+        user_service_factory::UserServiceFactory,
+    },
 };
 
 pub mod docs_api;
@@ -74,7 +78,9 @@ pub struct ApiV1;
 impl ApiV1 {
     pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<RwLock<Enforcer>>) -> Router {
         let mut api = OpenApi::default();
-        let user_service_factory = UserServiceFactory::new(enforcer);
+        let user_service_factory = UserServiceFactory::new(Arc::clone(&enforcer));
+        let institution_service_factory = InstitutionServiceFactory::new(Arc::clone(&enforcer));
+
         let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
             var("CORS_ALLOWED_ORIGIN")
                 .expect("Failed to read `CORS_ALLOWED_ORIGIN` environment variable.")
@@ -82,9 +88,11 @@ impl ApiV1 {
         let state = Arc::new(AppState {
             connection_pool,
             user_service_factory,
+            institution_service_factory,
         });
         ApiRouter::<Arc<AppState>>::new()
             .nest("/users", UserApi::router(Arc::clone(&state)))
+            .nest("/institutions", InstitutionApi::router(Arc::clone(&state)))
             .nest("/docs", DocsApi::router(Arc::clone(&state)))
             .finish_api_with(&mut api, Self::api_docs)
             .layer(
@@ -129,6 +137,7 @@ impl ApiV1 {
 pub struct AppState {
     pub connection_pool: Arc<RwLock<PgPool>>,
     pub user_service_factory: UserServiceFactory,
+    pub institution_service_factory: InstitutionServiceFactory,
 }
 
 #[derive(FromRequest, OperationIo, Serialize)]
