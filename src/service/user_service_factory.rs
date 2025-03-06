@@ -64,26 +64,16 @@ impl UserServiceFactory {
         connection_pool: Arc<RwLock<PgPool>>,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
         let enforcer = self.enforcer.read().await;
-        let mut groups = token
+        let groups = token
             .groups()
             .iter()
             .flat_map(|g| g.split(":").last())
             .collect::<Vec<_>>();
-        // We want to allow google login so we add the "user" group
-        // here if the groups claim is empty
-        if user.is_some() && groups.is_empty() {
-            groups.push("user");
-        }
         debug!("User Groups: {:?}", groups);
         let mut read_level = ReadLevel::default();
         let mut create_level = CreateLevel::default();
         let mut update_level = UpdateLevel::default();
         let mut delete_level = DeleteLevel::default();
-
-        // We want to allow new user registration
-        if groups.is_empty() && user.is_none() && token.email_verified() {
-            groups.push("unregistered_user")
-        }
 
         'outer: for level in ReadLevel::levels() {
             let level_str: &str = level.into();

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use aes_gcm_siv::{Aes256GcmSiv, Error as AesError, KeyInit, Nonce, aead::Aead};
 use aide::OperationIo;
 use axum::{
-    Extension, RequestPartsExt,
     extract::FromRequestParts,
     response::{IntoResponse, Response},
 };
@@ -128,7 +127,7 @@ pub struct CursorKeyFilter {
     key = "String",
     convert = r##"{"get_cursor_key".to_owned()}"##
 )]
-async fn get_cursor_key(state: Arc<AppState>) -> Result<CursorKey, Response> {
+async fn get_cursor_key(state: &Arc<AppState>) -> Result<CursorKey, Response> {
     debug!("Refreshing cursor key.");
     let mut connection = state
         .connection_pool
@@ -181,15 +180,13 @@ async fn get_cursor_key(state: Arc<AppState>) -> Result<CursorKey, Response> {
     Ok(cursor_key)
 }
 
-impl<S: Send + Sync> FromRequestParts<S> for CursorKey {
+impl FromRequestParts<Arc<AppState>> for CursorKey {
     type Rejection = Response;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let Extension(state) = parts
-            .extract::<Extension<Arc<AppState>>>()
-            .await
-            .map_err(|err| err.into_response())?;
-
+    async fn from_request_parts(
+        _parts: &mut Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
         let cursor_key = get_cursor_key(state).await?;
         Ok(cursor_key)
     }

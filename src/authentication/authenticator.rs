@@ -52,6 +52,7 @@ impl Authenticator {
     ) -> Result<AuthenticatedToken, AuthenticationError> {
         let mut tokens = authorization_header.split_whitespace();
         if "Bearer" != tokens.next().ok_or(AuthenticationError::MissingBearer)? {
+            debug!("Missing bearer token");
             return Err(AuthenticationError::MissingBearer);
         }
 
@@ -99,6 +100,7 @@ impl<B: Send + 'static> AsyncAuthorizeRequest<B> for Authenticator {
                 .and_then(|h| h.to_str().ok())
                 .map(|s| s.to_owned())
             else {
+                debug!("No Authentication Header");
                 return Err(Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
                     .body(Body::default())
@@ -124,10 +126,13 @@ impl<B: Send + 'static> AsyncAuthorizeRequest<B> for Authenticator {
                             .body(Body::default())
                             .unwrap())
                     }
-                    _ => Err(Response::builder()
-                        .status(StatusCode::UNAUTHORIZED)
-                        .body(Body::default())
-                        .unwrap()),
+                    e => {
+                        debug!("{e}");
+                        Err(Response::builder()
+                            .status(StatusCode::UNAUTHORIZED)
+                            .body(Body::default())
+                            .unwrap())
+                    }
                 },
             }
         })

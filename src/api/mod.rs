@@ -11,8 +11,9 @@ use aide::{
     transform::TransformOpenApi,
 };
 use axum::{
-    Extension, Json, Router,
-    extract::{FromRequest, rejection::JsonRejection},
+    Extension, Json, RequestExt, Router,
+    extract::{FromRequest, Request, rejection::JsonRejection},
+    middleware::Next,
     response::{IntoResponse, Response},
 };
 use casbin::Enforcer;
@@ -32,7 +33,10 @@ use tracing::error;
 use user_api::UserApi;
 
 use crate::{
-    authentication::authenticator::AUTH_WELL_KNOWN_URI,
+    authentication::{
+        authenticated_token::AuthenticatedToken, authenticator::AUTH_WELL_KNOWN_URI,
+        registered_user::RegisteredUser,
+    },
     model::cursor_key::EncryptionError,
     service::{ServiceError, user_service_factory::UserServiceFactory},
 };
@@ -41,6 +45,23 @@ pub mod docs_api;
 pub mod user_api;
 
 static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
+
+pub async fn set_user_groups(
+    mut token: AuthenticatedToken,
+    user: Option<RegisteredUser>,
+    mut request: Request,
+    next: Next,
+) -> Response {
+    if token.groups().is_empty() && token.email_verified() {
+        if user.is_some() {
+            token.add_group("user".into());
+        } else {
+            token.add_group("unregistered_user".into());
+        }
+    }
+    request.extensions_mut().insert(token);
+    next.run(request).await
+}
 
 pub trait Api {
     fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>>;

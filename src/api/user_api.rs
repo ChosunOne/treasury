@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState},
+    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -30,15 +30,17 @@ use aide::{
     transform::TransformOperation,
 };
 use axum::{
-    Extension, Json,
+    Json,
     extract::{FromRequestParts, Path, Query},
     http::request::Parts,
+    middleware::{from_fn, from_fn_with_state},
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
@@ -53,16 +55,14 @@ pub struct UserApiState {
 
 impl OperationInput for UserApiState {}
 
-impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
+impl FromRequestParts<Arc<AppState>> for UserApiState {
     type Rejection = Response;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
         use axum::RequestPartsExt;
-
-        let Extension(state) = parts
-            .extract::<Extension<Arc<AppState>>>()
-            .await
-            .map_err(|err| err.into_response())?;
 
         let authenticated_token = parts
             .extensions
@@ -74,7 +74,10 @@ impl<S: Send + Sync> FromRequestParts<S> for UserApiState {
             ))
             .map_err(|err| err.into_response())?;
 
-        let registered_user = parts.extract::<RegisteredUser>().await.ok();
+        let registered_user = parts
+            .extract_with_state::<RegisteredUser, _>(state)
+            .await
+            .ok();
 
         let user_service = state
             .user_service_factory
@@ -265,7 +268,11 @@ impl Api for UserApi {
             .api_route("/", post_with(Self::create, Self::create_docs))
             .api_route("/{user_id}", patch_with(Self::update, Self::update_docs))
             .api_route("/{user_id}", delete_with(Self::delete, Self::delete_docs))
-            .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
-            .layer(Extension(state))
+            .layer(
+                ServiceBuilder::new()
+                    .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
+                    .layer(from_fn_with_state(state.clone(), set_user_groups)),
+            )
+            .with_state(state)
     }
 }

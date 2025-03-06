@@ -1,3 +1,8 @@
+use axum::{
+    extract::FromRequestParts,
+    response::{IntoResponse, Response},
+};
+use http::{StatusCode, request::Parts};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -39,5 +44,26 @@ impl AuthenticatedToken {
 
     pub fn groups(&self) -> &[String] {
         &self.claims.groups
+    }
+
+    pub fn add_group(&mut self, group: String) {
+        self.claims.groups.push(group)
+    }
+}
+
+impl<S: Send + Sync> FromRequestParts<S> for AuthenticatedToken {
+    type Rejection = Response;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let authenticated_token = parts
+            .extensions
+            .get::<AuthenticatedToken>()
+            .cloned()
+            .ok_or((
+                StatusCode::UNAUTHORIZED,
+                "User not authenticated".to_owned(),
+            ))
+            .map_err(|err| err.into_response())?;
+        Ok(authenticated_token)
     }
 }

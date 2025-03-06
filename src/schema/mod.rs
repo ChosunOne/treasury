@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use aide::OperationIo;
 use axum::{
-    Extension, RequestPartsExt,
+    RequestPartsExt,
     extract::{FromRequestParts, Query},
     response::{IntoResponse, Response},
 };
@@ -64,7 +64,7 @@ pub struct Cursor {
     result = true
 )]
 async fn get_cursor_key(
-    state: Arc<AppState>,
+    state: &Arc<AppState>,
     cursor_key_id: CursorKeyId,
 ) -> Result<CursorKey, Response> {
     debug!("Refreshing cursor key");
@@ -100,15 +100,13 @@ async fn get_cursor_key(
 
 // We need to make sure the cursor is opaque so that clients don't
 // rely on the implementation details.
-impl<S: Send + Sync> FromRequestParts<S> for Pagination {
+impl FromRequestParts<Arc<AppState>> for Pagination {
     type Rejection = Response;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let Extension(state) = parts
-            .extract::<Extension<Arc<AppState>>>()
-            .await
-            .map_err(|err| err.into_response())?;
-
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
         let query_params = parts
             .extract::<Query<HashMap<String, String>>>()
             .await
