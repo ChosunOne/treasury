@@ -49,12 +49,21 @@ impl AuthenticatedToken {
     pub fn add_group(&mut self, group: String) {
         self.claims.groups.push(group)
     }
+
+    pub fn normalize_groups(&mut self) {
+        self.claims.groups = self
+            .claims
+            .groups
+            .iter()
+            .flat_map(|g| g.split(":").last().map(|x| x.to_owned()))
+            .collect::<Vec<String>>();
+    }
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for AuthenticatedToken {
     type Rejection = Response;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let authenticated_token = parts
             .extensions
             .get::<AuthenticatedToken>()

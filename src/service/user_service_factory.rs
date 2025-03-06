@@ -64,11 +64,7 @@ impl UserServiceFactory {
         connection_pool: Arc<RwLock<PgPool>>,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
         let enforcer = self.enforcer.read().await;
-        let groups = token
-            .groups()
-            .iter()
-            .flat_map(|g| g.split(":").last())
-            .collect::<Vec<_>>();
+        let groups = token.groups();
         debug!("User Groups: {:?}", groups);
         let mut read_level = ReadLevel::default();
         let mut create_level = CreateLevel::default();

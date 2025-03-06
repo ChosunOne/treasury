@@ -11,7 +11,7 @@ use aide::{
     transform::TransformOpenApi,
 };
 use axum::{
-    Extension, Json, RequestExt, Router,
+    Extension, Json, Router,
     extract::{FromRequest, Request, rejection::JsonRejection},
     middleware::Next,
     response::{IntoResponse, Response},
@@ -42,6 +42,7 @@ use crate::{
 };
 
 pub mod docs_api;
+pub mod institution_api;
 pub mod user_api;
 
 static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
@@ -59,6 +60,7 @@ pub async fn set_user_groups(
             token.add_group("unregistered_user".into());
         }
     }
+    token.normalize_groups();
     request.extensions_mut().insert(token);
     next.run(request).await
 }

@@ -33,7 +33,7 @@ use axum::{
     Json,
     extract::{FromRequestParts, Path, Query},
     http::request::Parts,
-    middleware::{from_fn, from_fn_with_state},
+    middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};

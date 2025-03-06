@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use axum::{
-    Extension,
     extract::{FromRequestParts, OptionalFromRequestParts},
     response::{IntoResponse, Response},
 };
