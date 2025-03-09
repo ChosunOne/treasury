@@ -1,3 +1,4 @@
+pub mod account_repository;
 pub mod cursor_key_repository;
 pub mod institution_repository;
 pub mod user_repository;
@@ -71,5 +72,19 @@ pub trait Repository<Id, Model, CreateModel, Filter>:
     + CreateRepository<CreateModel, Model>
     + UpdateRepository<Model>
     + DeleteRepository<Id, Model>
+{
+}
+
+impl<
+    T: GetRepository<Id, Model>
+        + GetListRepository<Model, Filter>
+        + CreateRepository<CreateModel, Model>
+        + UpdateRepository<Model>
+        + DeleteRepository<Id, Model>,
+    Id,
+    Model,
+    CreateModel,
+    Filter,
+> Repository<Id, Model, CreateModel, Filter> for T
 {
 }

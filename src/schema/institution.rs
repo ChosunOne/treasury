@@ -54,9 +54,6 @@ impl IntoResponse for CreateResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetRequest {}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetResponse {
     pub id: InstitutionId,
     pub created_at: String,

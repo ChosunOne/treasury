@@ -9,14 +9,14 @@ use tracing::debug;
 use crate::authentication::authenticated_token::AuthenticatedToken;
 use crate::authentication::registered_user::RegisteredUser;
 use crate::authorization::actions::{
-    ActionSet, Create, CreateLevel, Delete, DeleteAll, DeleteLevel, NoPermission, Read, ReadAll,
-    ReadLevel, Update, UpdateAll, UpdateLevel,
+    ActionSet, Create, CreateAll, CreateLevel, Delete, DeleteAll, DeleteLevel, NoPermission, Read,
+    ReadAll, ReadLevel, Update, UpdateAll, UpdateLevel,
 };
 use crate::authorization::policy::Policy;
-use crate::authorization::resources::User as UserResource;
+use crate::authorization::resources::Account as AccountResource;
 use crate::authorization::roles::Any;
-use crate::resource::user_repository::UserRepository;
-use crate::service::user_service::{UserService, UserServiceMethods};
+use crate::resource::account_repository::AccountRepository;
+use crate::service::account_service::{AccountService, AccountServiceMethods};
 use crate::service::{ServiceFactoryConfig, ServiceFactoryError};
 
 macro_rules! generate_permission_combinations {
@@ -25,8 +25,8 @@ macro_rules! generate_permission_combinations {
         match ($read_level, $create_level, $update_level, $delete_level) {
             $(
                 (ReadLevel::$read, CreateLevel::$create, UpdateLevel::$update, DeleteLevel::$delete) => {
-                    Ok(Box::new(UserService::<Policy<
-                        UserResource,
+                    Ok(Box::new(AccountService::<Policy<
+                        AccountResource,
                         ActionSet<
                             $read,
                             $create,
@@ -34,26 +34,26 @@ macro_rules! generate_permission_combinations {
                             $delete
                         >,
                         Any
-                    >>::new($pool, UserRepository {}, $user)))
+                    >>::new($pool, AccountRepository {}, $user)))
                 },
             )*
-            _ => {Ok(Box::new(UserService::<Policy<UserResource, ActionSet, Any>>::new($pool, UserRepository {}, $user)))}
+            _ => {Ok(Box::new(AccountService::<Policy<AccountResource, ActionSet, Any>>::new($pool, AccountRepository {}, $user)))}
         }
     };
 }
 
 #[derive(Clone)]
-pub struct UserServiceFactory {
+pub struct AccountServiceFactory {
     enforcer: Arc<RwLock<Enforcer>>,
 }
 
-impl Debug for UserServiceFactory {
+impl Debug for AccountServiceFactory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("UserServiceFactory")
+        f.write_str("AccountServiceFactory")
     }
 }
 
-impl UserServiceFactory {
+impl AccountServiceFactory {
     pub fn new(enforcer: Arc<RwLock<Enforcer>>) -> Self {
         Self { enforcer }
     }
@@ -61,10 +61,10 @@ impl UserServiceFactory {
     pub async fn build(
         &self,
         token: AuthenticatedToken,
-        user: Option<RegisteredUser>,
+        user: RegisteredUser,
         connection_pool: Arc<RwLock<PgPool>>,
         config: ServiceFactoryConfig,
-    ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
+    ) -> Result<Box<dyn AccountServiceMethods + Send>, ServiceFactoryError> {
         let enforcer = self.enforcer.read().await;
         let groups = token.groups();
         debug!("User Groups: {groups:?}");
@@ -79,7 +79,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if enforcer.enforce((group, "accounts", level_str))? {
                     read_level = level;
                     break 'outer;
                 }
@@ -92,7 +92,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if enforcer.enforce((group, "accounts", level_str))? {
                     create_level = level;
                     break 'outer;
                 }
@@ -106,7 +106,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if enforcer.enforce((group, "accounts", level_str))? {
                     update_level = level;
                     break 'outer;
                 }
@@ -120,7 +120,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if enforcer.enforce((group, "accounts", level_str))? {
                     delete_level = level;
                     break 'outer;
                 }
@@ -128,8 +128,7 @@ impl UserServiceFactory {
         }
         debug!("Delete level: {delete_level:?}");
 
-        generate_permission_combinations!(
-            read_level, create_level, update_level, delete_level, connection_pool, user;
+        generate_permission_combinations!(read_level, create_level, update_level, delete_level, connection_pool, user;
             [NoPermission, NoPermission, NoPermission, Delete],
             [NoPermission, NoPermission, NoPermission, DeleteAll],
             [NoPermission, NoPermission, Update, NoPermission],
@@ -147,6 +146,15 @@ impl UserServiceFactory {
             [NoPermission, Create, UpdateAll, NoPermission],
             [NoPermission, Create, UpdateAll, Delete],
             [NoPermission, Create, UpdateAll, DeleteAll],
+            [NoPermission, CreateAll, NoPermission, NoPermission],
+            [NoPermission, CreateAll, NoPermission, Delete],
+            [NoPermission, CreateAll, NoPermission, DeleteAll],
+            [NoPermission, CreateAll, Update, NoPermission],
+            [NoPermission, CreateAll, Update, Delete],
+            [NoPermission, CreateAll, Update, DeleteAll],
+            [NoPermission, CreateAll, UpdateAll, NoPermission],
+            [NoPermission, CreateAll, UpdateAll, Delete],
+            [NoPermission, CreateAll, UpdateAll, DeleteAll],
             [Read, NoPermission, NoPermission, NoPermission],
             [Read, NoPermission, NoPermission, Delete],
             [Read, NoPermission, NoPermission, DeleteAll],
@@ -165,6 +173,15 @@ impl UserServiceFactory {
             [Read, Create, UpdateAll, NoPermission],
             [Read, Create, UpdateAll, Delete],
             [Read, Create, UpdateAll, DeleteAll],
+            [Read, CreateAll, NoPermission, NoPermission],
+            [Read, CreateAll, NoPermission, Delete],
+            [Read, CreateAll, NoPermission, DeleteAll],
+            [Read, CreateAll, Update, NoPermission],
+            [Read, CreateAll, Update, Delete],
+            [Read, CreateAll, Update, DeleteAll],
+            [Read, CreateAll, UpdateAll, NoPermission],
+            [Read, CreateAll, UpdateAll, Delete],
+            [Read, CreateAll, UpdateAll, DeleteAll],
             [ReadAll, NoPermission, NoPermission, NoPermission],
             [ReadAll, NoPermission, NoPermission, Delete],
             [ReadAll, NoPermission, NoPermission, DeleteAll],
@@ -183,6 +200,15 @@ impl UserServiceFactory {
             [ReadAll, Create, UpdateAll, NoPermission],
             [ReadAll, Create, UpdateAll, Delete],
             [ReadAll, Create, UpdateAll, DeleteAll],
+            [ReadAll, CreateAll, NoPermission, NoPermission],
+            [ReadAll, CreateAll, NoPermission, Delete],
+            [ReadAll, CreateAll, NoPermission, DeleteAll],
+            [ReadAll, CreateAll, Update, NoPermission],
+            [ReadAll, CreateAll, Update, Delete],
+            [ReadAll, CreateAll, Update, DeleteAll],
+            [ReadAll, CreateAll, UpdateAll, NoPermission],
+            [ReadAll, CreateAll, UpdateAll, Delete],
+            [ReadAll, CreateAll, UpdateAll, DeleteAll],
         )
     }
 }

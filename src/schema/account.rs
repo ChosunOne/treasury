@@ -6,43 +6,45 @@ use axum::{
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{
     model::{
+        account::{Account, AccountFilter, AccountId, AccountUpdate},
         cursor_key::{CursorKey, EncryptionError},
-        user::{User, UserFilter, UserId, UserUpdate},
+        institution::InstitutionId,
+        user::UserId,
     },
     schema::{Cursor, Pagination},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
-    /// The user name
+    /// The account name
     pub name: String,
+    /// The institution id of which the account belongs
+    pub institution_id: InstitutionId,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateResponse {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+    pub id: AccountId,
     pub created_at: String,
-    /// When the user was updated
     pub updated_at: String,
-    /// The user name
     pub name: String,
-    /// The user email
-    pub email: String,
+    pub institution_id: InstitutionId,
+    pub user_id: UserId,
 }
 
-impl From<User> for CreateResponse {
-    fn from(value: User) -> Self {
+impl From<Account> for CreateResponse {
+    fn from(value: Account) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
+            institution_id: value.institution_id,
+            user_id: value.user_id,
         }
     }
 }
@@ -55,26 +57,23 @@ impl IntoResponse for CreateResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct GetResponse {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+    pub id: AccountId,
     pub created_at: String,
-    /// When the user was updated
     pub updated_at: String,
-    /// The user name
     pub name: String,
-    /// The user email
-    pub email: String,
+    pub institution_id: InstitutionId,
+    pub user_id: UserId,
 }
 
-impl From<User> for GetResponse {
-    fn from(value: User) -> Self {
+impl From<Account> for GetResponse {
+    fn from(value: Account) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
+            institution_id: value.institution_id,
+            user_id: value.user_id,
         }
     }
 }
@@ -91,70 +90,66 @@ pub struct GetListRequest {
     #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// The email to filter on
-    #[schemars(with = "String")]
+    /// The institution_id to filter on
+    #[schemars(with = "Uuid")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub institution_id: Option<InstitutionId>,
 }
 
-impl From<GetListRequest> for UserFilter {
+impl From<GetListRequest> for AccountFilter {
     fn from(value: GetListRequest) -> Self {
         Self {
             name: value.name,
-            email: value.email,
+            institution_id: value.institution_id,
             ..Default::default()
         }
     }
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListUser {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+pub struct GetListAccount {
+    pub id: AccountId,
     pub created_at: String,
-    /// When the user was updated
     pub updated_at: String,
-    /// The user name
     pub name: String,
-    /// The user email
-    pub email: String,
+    pub institution_id: InstitutionId,
+    pub user_id: UserId,
 }
 
-impl From<User> for GetListUser {
-    fn from(value: User) -> Self {
+impl From<Account> for GetListAccount {
+    fn from(value: Account) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
+            institution_id: value.institution_id,
+            user_id: value.user_id,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
-    /// The list of users
-    pub users: Vec<GetListUser>,
-    /// The cursor to get the next set of users
+    /// The list of accounts
+    pub accounts: Vec<GetListAccount>,
+    /// The cursor to get the next set of accounts
     pub next_cursor: Option<String>,
-    /// The cursor to get the previous set of users
+    /// The cursor to get the previous set of accounts
     pub prev_cursor: Option<String>,
 }
 
 impl GetListResponse {
     pub fn new(
-        users: Vec<User>,
+        accounts: Vec<Account>,
         pagination: &Pagination,
         cursor_key: &CursorKey,
     ) -> Result<Self, EncryptionError> {
-        let users = users.into_iter().map(|x| x.into()).collect::<Vec<_>>();
-
-        let next_cursor = if users.is_empty() {
+        let accounts = accounts.into_iter().map(|x| x.into()).collect::<Vec<_>>();
+        let next_cursor = if accounts.is_empty() {
             None
         } else {
-            let next_offset = pagination.offset() + users.len() as i64;
+            let next_offset = pagination.offset() + accounts.len() as i64;
             Some(cursor_key.encrypt_base64(Cursor {
                 offset: next_offset,
             })?)
@@ -171,7 +166,7 @@ impl GetListResponse {
             })?)
         };
         Ok(Self {
-            users,
+            accounts,
             next_cursor,
             prev_cursor,
         })
@@ -186,33 +181,24 @@ impl IntoResponse for GetListResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateRequest {
-    /// The new user name
     #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: String,
 }
 
-impl From<UpdateRequest> for UserUpdate {
+impl From<UpdateRequest> for AccountUpdate {
     fn from(value: UpdateRequest) -> Self {
-        Self {
-            name: value.name,
-            email: None,
-        }
+        Self { name: value.name }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateResponse {
-    /// The user id
-    pub id: UserId,
-    /// When the user was created
+    pub id: AccountId,
     pub created_at: String,
-    /// When the user was updated
     pub updated_at: String,
-    /// The user name
     pub name: String,
-    /// The user email
-    pub email: String,
+    pub institution_id: InstitutionId,
+    pub user_id: UserId,
 }
 
 impl IntoResponse for UpdateResponse {
@@ -221,14 +207,15 @@ impl IntoResponse for UpdateResponse {
     }
 }
 
-impl From<User> for UpdateResponse {
-    fn from(value: User) -> Self {
+impl From<Account> for UpdateResponse {
+    fn from(value: Account) -> Self {
         Self {
             id: value.id,
             created_at: value.created_at.to_rfc3339(),
             updated_at: value.updated_at.to_rfc3339(),
             name: value.name,
-            email: value.email,
+            institution_id: value.institution_id,
+            user_id: value.user_id,
         }
     }
 }

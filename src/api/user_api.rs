@@ -6,6 +6,7 @@ use crate::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
     },
+    authorization::actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
     model::{
         cursor_key::CursorKey,
         user::{UserCreate, UserId},
@@ -19,7 +20,7 @@ use crate::{
             UpdateRequest as UserUpdateRequest, UpdateResponse as UserUpdateResponse,
         },
     },
-    service::user_service::UserServiceMethods,
+    service::{ServiceFactoryConfig, user_service::UserServiceMethods},
 };
 use aide::{
     OperationInput,
@@ -36,7 +37,7 @@ use axum::{
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -80,6 +81,12 @@ impl FromRequestParts<Arc<AppState>> for UserApiState {
                 authenticated_token.clone(),
                 registered_user,
                 Arc::clone(&state.connection_pool),
+                ServiceFactoryConfig {
+                    min_read_level: ReadLevel::Read,
+                    min_create_level: CreateLevel::Create,
+                    min_update_level: UpdateLevel::Update,
+                    min_delete_level: DeleteLevel::Delete,
+                },
             )
             .await
             .map_err(|e| {
@@ -147,8 +154,8 @@ impl UserApi {
             .response_with::<200, Json<UserGetResponse>, _>(|res| {
                 res.description("A user").example(UserGetResponse {
                     id: UserId::default(),
-                    created_at: DateTime::<Utc>::default().to_rfc3339(),
-                    updated_at: DateTime::<Utc>::default().to_rfc3339(),
+                    created_at: Utc::now().to_rfc3339(),
+                    updated_at: Utc::now().to_rfc3339(),
                     name: "User Name".into(),
                     email: "email@email.com".into(),
                 })

@@ -16,8 +16,8 @@ use crate::authorization::resources::Institution as InstitutionResource;
 use crate::authorization::roles::Any;
 
 use crate::resource::institution_repository::InstitutionRepository;
-use crate::service::ServiceFactoryError;
 use crate::service::institution_service::{InstitutionService, InstitutionServiceMethods};
+use crate::service::{ServiceFactoryConfig, ServiceFactoryError};
 
 macro_rules! generate_permission_combinations {
     ($read_level:expr, $create_level:expr, $update_level:expr, $delete_level:expr, $pool:expr;
@@ -62,6 +62,7 @@ impl InstitutionServiceFactory {
         &self,
         token: AuthenticatedToken,
         connection_pool: Arc<RwLock<PgPool>>,
+        config: ServiceFactoryConfig,
     ) -> Result<Box<dyn InstitutionServiceMethods + Send>, ServiceFactoryError> {
         let enforcer = self.enforcer.read().await;
         let groups = token.groups();
@@ -73,7 +74,7 @@ impl InstitutionServiceFactory {
 
         'outer: for level in ReadLevel::levels()
             .into_iter()
-            .filter(|&x| ReadLevel::Read <= x)
+            .filter(|&x| config.min_read_level <= x)
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
@@ -85,7 +86,10 @@ impl InstitutionServiceFactory {
         }
         debug!("Read level: {read_level:?}");
 
-        'outer: for level in CreateLevel::levels() {
+        'outer: for level in CreateLevel::levels()
+            .into_iter()
+            .filter(|&x| config.min_create_level <= x)
+        {
             let level_str: &str = level.into();
             for group in groups.iter() {
                 if enforcer.enforce((group, "institutions", level_str))? {
@@ -98,7 +102,7 @@ impl InstitutionServiceFactory {
 
         'outer: for level in UpdateLevel::levels()
             .into_iter()
-            .filter(|&x| UpdateLevel::Update <= x)
+            .filter(|&x| config.min_update_level <= x)
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
@@ -112,7 +116,7 @@ impl InstitutionServiceFactory {
 
         'outer: for level in DeleteLevel::levels()
             .into_iter()
-            .filter(|&x| DeleteLevel::Delete <= x)
+            .filter(|&x| config.min_delete_level <= x)
         {
             let level_str: &str = level.into();
             for group in groups.iter() {

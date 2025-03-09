@@ -1,7 +1,10 @@
 use sqlx::{PgTransaction, QueryBuilder, query_as};
 
 use crate::{
-    model::cursor_key::{CursorKey, CursorKeyCreate, CursorKeyFilter, CursorKeyId},
+    model::{
+        Filter,
+        cursor_key::{CursorKey, CursorKeyCreate, CursorKeyFilter, CursorKeyId},
+    },
     resource::{CreateRepository, GetListRepository, GetRepository, RepositoryError},
 };
 
@@ -46,11 +49,7 @@ impl GetListRepository<CursorKey, CursorKeyFilter> for CursorKeyRepository {
         "#,
         );
 
-        query.push(r#"WHERE "#);
-        if let Some(expires_at) = filter.expires_at {
-            query.push(r#"expires_at IS NULL OR expires_at > "#);
-            query.push_bind(expires_at);
-        }
+        filter.push(&mut query);
 
         query.push(r#" OFFSET "#);
         query.push_bind(offset);

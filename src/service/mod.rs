@@ -1,3 +1,5 @@
+pub mod account_service;
+pub mod account_service_factory;
 pub mod institution_service;
 pub mod institution_service_factory;
 pub mod user_service;
@@ -5,7 +7,10 @@ pub mod user_service_factory;
 
 use thiserror::Error;
 
-use crate::resource::RepositoryError;
+use crate::{
+    authorization::actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
+    resource::RepositoryError,
+};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -34,4 +39,16 @@ impl From<RepositoryError> for ServiceError {
 pub enum ServiceFactoryError {
     #[error("{0}")]
     Policy(#[from] casbin::Error),
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ServiceFactoryConfig {
+    /// The highest level of read permission to construct for this factory
+    pub min_read_level: ReadLevel,
+    /// The highest level of create permission to construct for this factory
+    pub min_create_level: CreateLevel,
+    /// The highest level of update permission to construct for this factory
+    pub min_update_level: UpdateLevel,
+    /// The highest level of delete permission to construct for this factory
+    pub min_delete_level: DeleteLevel,
 }

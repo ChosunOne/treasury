@@ -4,6 +4,7 @@ pub struct NoPermission;
 pub struct Read;
 pub struct ReadAll;
 pub struct Create;
+pub struct CreateAll;
 pub struct Update;
 pub struct UpdateAll;
 pub struct Delete;
@@ -67,6 +68,7 @@ impl From<&String> for ReadLevel {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CreateLevel {
+    CreateAll,
     Create,
     #[default]
     NoPermission,
@@ -74,7 +76,7 @@ pub enum CreateLevel {
 
 impl CreateLevel {
     pub fn levels() -> Vec<Self> {
-        let mut l = vec![Self::Create, Self::NoPermission];
+        let mut l = vec![Self::CreateAll, Self::Create, Self::NoPermission];
         l.sort();
         l
     }
@@ -83,6 +85,7 @@ impl CreateLevel {
 impl From<CreateLevel> for &str {
     fn from(value: CreateLevel) -> Self {
         match value {
+            CreateLevel::CreateAll => "create_all",
             CreateLevel::Create => "create",
             CreateLevel::NoPermission => "none",
         }
@@ -92,6 +95,7 @@ impl From<CreateLevel> for &str {
 impl From<&str> for CreateLevel {
     fn from(value: &str) -> Self {
         match value {
+            "create_all" => CreateLevel::CreateAll,
             "create" => CreateLevel::Create,
             _ => CreateLevel::default(),
         }
@@ -101,6 +105,7 @@ impl From<&str> for CreateLevel {
 impl From<String> for CreateLevel {
     fn from(value: String) -> Self {
         match value {
+            val if val == *"create_all" => CreateLevel::CreateAll,
             val if val == *"create" => CreateLevel::Create,
             _ => CreateLevel::default(),
         }
@@ -110,6 +115,7 @@ impl From<String> for CreateLevel {
 impl From<&String> for CreateLevel {
     fn from(value: &String) -> Self {
         match value {
+            val if val == "create_all" => CreateLevel::CreateAll,
             val if val == "create" => CreateLevel::Create,
             _ => CreateLevel::default(),
         }

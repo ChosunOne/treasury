@@ -29,6 +29,7 @@ use crate::{
     resource::{GetRepository, RepositoryError, cursor_key_repository::CursorKeyRepository},
 };
 
+pub mod account;
 pub mod institution;
 pub mod user;
 

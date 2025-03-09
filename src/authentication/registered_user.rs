@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use aide::OperationIo;
 use axum::{
     extract::{FromRequestParts, OptionalFromRequestParts},
     response::{IntoResponse, Response},
@@ -11,11 +12,11 @@ use tracing::error;
 use crate::{
     api::AppState,
     authentication::authenticated_token::AuthenticatedToken,
-    model::user::{User, UserFilter},
+    model::user::{User, UserFilter, UserId},
     resource::{GetListRepository, user_repository::UserRepository},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, OperationIo)]
 pub struct RegisteredUser {
     pub user: User,
 }
@@ -23,6 +24,10 @@ pub struct RegisteredUser {
 impl RegisteredUser {
     pub fn new(user: User) -> Self {
         Self { user }
+    }
+
+    pub fn id(&self) -> UserId {
+        self.user.id
     }
 }
 

@@ -14,7 +14,7 @@ use axum::{
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use http::{StatusCode, request::Parts};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -24,32 +24,40 @@ use tracing::error;
 
 use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
-    authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
+    authentication::{
+        authenticated_token::AuthenticatedToken, authenticator::Authenticator,
+        registered_user::RegisteredUser,
+    },
     authorization::actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
-    model::{cursor_key::CursorKey, institution::InstitutionId},
+    model::{
+        account::{AccountCreate, AccountId},
+        cursor_key::CursorKey,
+        institution::InstitutionId,
+        user::UserId,
+    },
     schema::{
         Pagination,
-        institution::{
-            CreateRequest, CreateResponse, DeleteResponse, GetListInstitution, GetListRequest,
+        account::{
+            CreateRequest, CreateResponse, DeleteResponse, GetListAccount, GetListRequest,
             GetListResponse, GetResponse, UpdateRequest, UpdateResponse,
         },
     },
-    service::{ServiceFactoryConfig, institution_service::InstitutionServiceMethods},
+    service::{ServiceFactoryConfig, account_service::AccountServiceMethods},
 };
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct PathInstitutionId {
-    id: InstitutionId,
+pub struct PathAccountId {
+    id: AccountId,
 }
 
-pub struct InstitutionApiState {
+pub struct AccountApiState {
     pub authenticated_token: AuthenticatedToken,
-    pub institution_service: Box<dyn InstitutionServiceMethods + Send>,
+    pub account_service: Box<dyn AccountServiceMethods + Send>,
 }
 
-impl OperationInput for InstitutionApiState {}
+impl OperationInput for AccountApiState {}
 
-impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
+impl FromRequestParts<Arc<AppState>> for AccountApiState {
     type Rejection = Response;
 
     async fn from_request_parts(
@@ -60,10 +68,13 @@ impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
             .extract_with_state::<AuthenticatedToken, _>(state)
             .await?;
 
-        let institution_service = state
-            .institution_service_factory
+        let registered_user = parts.extract_with_state::<RegisteredUser, _>(state).await?;
+
+        let account_service = state
+            .account_service_factory
             .build(
                 authenticated_token.clone(),
+                registered_user,
                 Arc::clone(&state.connection_pool),
                 ServiceFactoryConfig {
                     min_read_level: ReadLevel::Read,
@@ -77,44 +88,43 @@ impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
                 error!("{e}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
             })?;
+
         Ok(Self {
             authenticated_token,
-            institution_service,
+            account_service,
         })
     }
 }
 
-pub struct InstitutionApi;
+pub struct AccountApi;
 
-impl InstitutionApi {
+impl AccountApi {
     pub async fn get_list(
-        state: InstitutionApiState,
+        state: AccountApiState,
         pagination: Pagination,
         cursor_key: CursorKey,
         Query(filter): Query<GetListRequest>,
     ) -> Result<GetListResponse, ApiError> {
         let offset = pagination.offset();
-        let institutions = state
-            .institution_service
+        let accounts = state
+            .account_service
             .get_list(offset, pagination.max_items, filter.into())
             .await?;
-        let response = GetListResponse::new(institutions, &pagination, &cursor_key)?;
+        let response = GetListResponse::new(accounts, &pagination, &cursor_key)?;
         Ok(response)
     }
 
     pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_list_institution")
-            .tag("Institutions")
-            .description("Get a list of institutions.")
+        op.id("get_list_account")
+            .tag("Accounts")
+            .description("Get a list of accounts.")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<GetListResponse>, _>(|res| {
-                res.description("A list of institutions")
+                res.description("A list of accounts.")
                     .example(GetListResponse {
-                        institutions: vec![GetListInstitution::default(); 3],
-                        next_cursor: "<cursor to get the next set of institutions>"
-                            .to_owned()
-                            .into(),
-                        prev_cursor: "<cursor to get the previous set of institutions>"
+                        accounts: vec![GetListAccount::default(); 3],
+                        next_cursor: "<cursor to get the next set of accounts>".to_owned().into(),
+                        prev_cursor: "<cursor to get the previous set of accounts"
                             .to_owned()
                             .into(),
                     })
@@ -122,122 +132,131 @@ impl InstitutionApi {
     }
 
     pub async fn get(
-        Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-        state: InstitutionApiState,
+        Path(PathAccountId { id }): Path<PathAccountId>,
+        state: AccountApiState,
     ) -> Result<GetResponse, ApiError> {
-        let institution = state.institution_service.get(id).await?;
-        let response = institution.into();
+        let account = state.account_service.get(id).await?;
+        let response = account.into();
         Ok(response)
     }
 
     pub fn get_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_institution")
-            .tag("Institutions")
-            .description("Get an institution by id.")
+        op.id("get_account")
+            .tag("Accounts")
+            .description("Get an account by id.")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<GetResponse>, _>(|res| {
-                res.description("An institution").example(GetResponse {
-                    id: InstitutionId::default(),
-                    created_at: DateTime::<Utc>::default().to_rfc3339(),
-                    updated_at: DateTime::<Utc>::default().to_rfc3339(),
-                    name: "Institution Name".into(),
+                res.description("An account").example(GetResponse {
+                    id: AccountId::default(),
+                    created_at: Utc::now().to_rfc3339(),
+                    updated_at: Utc::now().to_rfc3339(),
+                    name: "Account Name".to_owned(),
+                    user_id: UserId::default(),
+                    institution_id: InstitutionId::default(),
                 })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("Institution not found.")
+                res.description("Account not found.")
                     .example(ApiErrorResponse {
-                        message: "Institution not found.".into(),
+                        message: "Account not found.".into(),
                     })
             })
     }
 
     pub async fn create(
-        state: InstitutionApiState,
+        state: AccountApiState,
+        registered_user: RegisteredUser,
         Json(create_request): Json<CreateRequest>,
     ) -> Result<CreateResponse, ApiError> {
-        let institution = state
-            .institution_service
-            .create(create_request.into())
-            .await?;
-        Ok(institution.into())
+        let account_create = AccountCreate {
+            name: create_request.name,
+            institution_id: create_request.institution_id,
+            user_id: registered_user.id(),
+        };
+        let account = state.account_service.create(account_create).await?;
+        Ok(account.into())
     }
 
     pub fn create_docs(op: TransformOperation) -> TransformOperation {
-        op.id("create_institution")
-            .tag("Institutions")
-            .description("Create a new institution")
+        op.id("create_account")
+            .tag("Accounts")
+            .description("Create a new account.")
             .security_requirement("OpenIdConnect")
             .response_with::<201, Json<CreateResponse>, _>(|res| {
-                res.description("The newly created institution")
+                res.description("The newly created account.")
                     .example(CreateResponse {
-                        id: InstitutionId::default(),
+                        id: AccountId::default(),
                         created_at: Utc::now().to_rfc3339(),
                         updated_at: Utc::now().to_rfc3339(),
-                        name: "Institution Name".into(),
+                        name: "Account Name".to_owned(),
+                        user_id: UserId::default(),
+                        institution_id: InstitutionId::default(),
                     })
             })
     }
 
     pub async fn update(
-        state: InstitutionApiState,
-        Path(PathInstitutionId { id }): Path<PathInstitutionId>,
+        state: AccountApiState,
+        Path(PathAccountId { id }): Path<PathAccountId>,
         Json(update_request): Json<UpdateRequest>,
     ) -> Result<UpdateResponse, ApiError> {
-        let institution = state
-            .institution_service
+        let account = state
+            .account_service
             .update(id, update_request.into())
             .await?;
-        Ok(institution.into())
+        Ok(account.into())
     }
 
     pub fn update_docs(op: TransformOperation) -> TransformOperation {
-        op.id("update_institution")
-            .tag("Institutions")
-            .description("Update an institution")
+        op.id("update_account")
+            .tag("Accounts")
+            .description("Update an account.")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<UpdateResponse>, _>(|res| {
-                res.description("The newly updated institution")
+                res.description("The newly updated account.")
                     .example(UpdateResponse {
-                        id: InstitutionId::default(),
+                        id: AccountId::default(),
                         created_at: Utc::now().to_rfc3339(),
                         updated_at: Utc::now().to_rfc3339(),
-                        name: "Institution Name".into(),
+                        name: "Account Name".into(),
+                        user_id: UserId::default(),
+                        institution_id: InstitutionId::default(),
                     })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("The institution was not found.")
+                res.description("The account was not found.")
                     .example(ApiErrorResponse {
-                        message: "Institution not found.".into(),
+                        message: "Account not found".into(),
                     })
             })
     }
 
     pub async fn delete(
-        Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-        state: InstitutionApiState,
+        Path(PathAccountId { id }): Path<PathAccountId>,
+        state: AccountApiState,
     ) -> Result<DeleteResponse, ApiError> {
-        state.institution_service.delete(id).await?;
+        state.account_service.delete(id).await?;
         Ok(DeleteResponse {})
     }
 
     pub fn delete_docs(op: TransformOperation) -> TransformOperation {
-        op.id("delete_institution")
-            .tag("Institutions")
-            .description("Delete an institution")
+        op.id("delete_account")
+            .tag("Accounts")
+            .description("Delete an account.")
             .security_requirement("OpenIdConnect")
             .response_with::<204, (), _>(|res| {
-                res.description("The institution was successfully deleted.")
+                res.description("The account was successfully deleted.")
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("The institution was not found.")
+                res.description("The account was not found.")
                     .example(ApiErrorResponse {
-                        message: "Institution not found.".into(),
+                        message: "Account not found.".into(),
                     })
             })
     }
 }
 
-impl Api for InstitutionApi {
+impl Api for AccountApi {
     fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
         ApiRouter::new()
             .api_route("/", get_with(Self::get_list, Self::get_list_docs))

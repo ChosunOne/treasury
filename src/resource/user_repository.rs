@@ -1,8 +1,9 @@
 use sqlx::{PgTransaction, QueryBuilder, query_as};
 
+use crate::model::Filter;
 use crate::model::user::{User, UserCreate, UserFilter, UserId};
 use crate::resource::{
-    CreateRepository, DeleteRepository, GetListRepository, GetRepository, MAX_LIMIT, Repository,
+    CreateRepository, DeleteRepository, GetListRepository, GetRepository, MAX_LIMIT,
     RepositoryError, UpdateRepository,
 };
 
@@ -45,24 +46,7 @@ impl GetListRepository<User, UserFilter> for UserRepository {
             "#,
         );
 
-        let name_or_email = filter.name.is_some() || filter.email.is_some();
-        if name_or_email {
-            query.push(r#"WHERE "#);
-        }
-
-        let name_and_email = filter.name.is_some() && filter.email.is_some();
-
-        if let Some(name) = filter.name {
-            query.push(r#"name = "#);
-            query.push_bind(name);
-        }
-        if name_and_email {
-            query.push(" AND ");
-        }
-        if let Some(email) = filter.email {
-            query.push(r#"email = "#);
-            query.push_bind(email);
-        }
+        filter.push(&mut query);
 
         query.push(r#" OFFSET "#);
         query.push_bind(offset);
@@ -149,5 +133,3 @@ impl DeleteRepository<UserId, User> for UserRepository {
         Ok(deleted_user)
     }
 }
-
-impl Repository<UserId, User, UserCreate, UserFilter> for UserRepository {}

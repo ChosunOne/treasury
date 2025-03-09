@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Type, prelude::FromRow};
 use uuid::Uuid;
 
+use crate::model::Filter;
+
 #[derive(
     Debug,
     Default,
@@ -50,4 +52,18 @@ pub struct InstitutionUpdate {
 pub struct InstitutionFilter {
     /// The institution name to filter on
     pub name: Option<String>,
+}
+
+impl Filter for InstitutionFilter {
+    fn push(self, query: &mut sqlx::QueryBuilder<'_, sqlx::Postgres>) {
+        if self.name.is_none() {
+            return;
+        }
+
+        query.push(r#"WHERE "#);
+        if let Some(name) = self.name {
+            query.push(r#"name = "#);
+            query.push_bind(name);
+        }
+    }
 }

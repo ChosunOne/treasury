@@ -33,18 +33,20 @@ use tracing::error;
 use user_api::UserApi;
 
 use crate::{
-    api::institution_api::InstitutionApi,
+    api::{account_api::AccountApi, institution_api::InstitutionApi},
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::AUTH_WELL_KNOWN_URI,
         registered_user::RegisteredUser,
     },
     model::cursor_key::EncryptionError,
     service::{
-        ServiceError, institution_service_factory::InstitutionServiceFactory,
+        ServiceError, account_service_factory::AccountServiceFactory,
+        institution_service_factory::InstitutionServiceFactory,
         user_service_factory::UserServiceFactory,
     },
 };
 
+pub mod account_api;
 pub mod docs_api;
 pub mod institution_api;
 pub mod user_api;
@@ -78,6 +80,7 @@ pub struct ApiV1;
 impl ApiV1 {
     pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<RwLock<Enforcer>>) -> Router {
         let mut api = OpenApi::default();
+        let account_service_factory = AccountServiceFactory::new(Arc::clone(&enforcer));
         let user_service_factory = UserServiceFactory::new(Arc::clone(&enforcer));
         let institution_service_factory = InstitutionServiceFactory::new(Arc::clone(&enforcer));
 
@@ -89,8 +92,10 @@ impl ApiV1 {
             connection_pool,
             user_service_factory,
             institution_service_factory,
+            account_service_factory,
         });
         ApiRouter::<Arc<AppState>>::new()
+            .nest("/accounts", AccountApi::router(Arc::clone(&state)))
             .nest("/users", UserApi::router(Arc::clone(&state)))
             .nest("/institutions", InstitutionApi::router(Arc::clone(&state)))
             .nest("/docs", DocsApi::router(Arc::clone(&state)))
@@ -136,6 +141,7 @@ impl ApiV1 {
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub connection_pool: Arc<RwLock<PgPool>>,
+    pub account_service_factory: AccountServiceFactory,
     pub user_service_factory: UserServiceFactory,
     pub institution_service_factory: InstitutionServiceFactory,
 }

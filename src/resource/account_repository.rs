@@ -3,7 +3,7 @@ use sqlx::{PgTransaction, QueryBuilder, query_as};
 use crate::{
     model::{
         Filter,
-        institution::{Institution, InstitutionCreate, InstitutionFilter, InstitutionId},
+        account::{Account, AccountCreate, AccountFilter, AccountId},
     },
     resource::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, MAX_LIMIT,
@@ -12,115 +12,120 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct InstitutionRepository;
+pub struct AccountRepository;
 
-impl GetRepository<InstitutionId, Institution> for InstitutionRepository {
+impl GetRepository<AccountId, Account> for AccountRepository {
     async fn get(
         &self,
         mut session: PgTransaction<'_>,
-        id: InstitutionId,
-    ) -> Result<Institution, RepositoryError> {
-        let institution = query_as!(
-            Institution,
+        id: AccountId,
+    ) -> Result<Account, RepositoryError> {
+        let account = query_as!(
+            Account,
             r#"
-            SELECT * FROM institution
+            SELECT * FROM account
             WHERE id = $1
-            "#,
-            id.0,
+        "#,
+            id.0
         )
         .fetch_one(&mut *session)
         .await?;
-        Ok(institution)
+        Ok(account)
     }
 }
 
-impl GetListRepository<Institution, InstitutionFilter> for InstitutionRepository {
+impl GetListRepository<Account, AccountFilter> for AccountRepository {
     async fn get_list(
         &self,
         mut session: PgTransaction<'_>,
         offset: i64,
         limit: Option<i64>,
-        filter: InstitutionFilter,
-    ) -> Result<Vec<Institution>, RepositoryError> {
+        filter: AccountFilter,
+    ) -> Result<Vec<Account>, RepositoryError> {
         let offset = offset.max(0);
         let limit = limit.map(|x| x.clamp(1, MAX_LIMIT)).unwrap_or(MAX_LIMIT);
+
         let mut query = QueryBuilder::new(
             r#"
-            SELECT * from institution
+            SELECT * from account
             "#,
         );
 
         filter.push(&mut query);
-
         query.push(r#" OFFSET "#);
         query.push_bind(offset);
         query.push(r#" LIMIT "#);
         query.push_bind(limit);
 
-        let institutions = query
-            .build_query_as::<Institution>()
+        let accounts = query
+            .build_query_as::<Account>()
             .fetch_all(&mut *session)
             .await?;
-        Ok(institutions)
+
+        Ok(accounts)
     }
 }
 
-impl CreateRepository<InstitutionCreate, Institution> for InstitutionRepository {
+impl CreateRepository<AccountCreate, Account> for AccountRepository {
     async fn create(
         &self,
         mut session: PgTransaction<'_>,
-        create_model: InstitutionCreate,
-    ) -> Result<Institution, RepositoryError> {
-        let new_institution = query_as!(
-            Institution,
+        create_model: AccountCreate,
+    ) -> Result<Account, RepositoryError> {
+        let new_account = query_as!(
+            Account,
             r#"
-            INSERT INTO institution (name)
-            VALUES ($1)
+            INSERT INTO account (name, institution_id, user_id)
+            VALUES ($1, $2, $3)
             RETURNING *
             "#,
-            create_model.name
+            create_model.name,
+            create_model.institution_id.0,
+            create_model.user_id.0,
         )
         .fetch_one(&mut *session)
         .await?;
         session.commit().await?;
-        Ok(new_institution)
+        Ok(new_account)
     }
 }
 
-impl UpdateRepository<Institution> for InstitutionRepository {
+impl UpdateRepository<Account> for AccountRepository {
     async fn update(
         &self,
         mut session: PgTransaction<'_>,
-        model: Institution,
-    ) -> Result<Institution, RepositoryError> {
-        let updated_institution = query_as!(
-            Institution,
+        model: Account,
+    ) -> Result<Account, RepositoryError> {
+        let updated_account = query_as!(
+            Account,
             r#"
-            UPDATE institution
-            SET name = $2
+            UPDATE account
+            SET name = $2, institution_id = $3, user_id = $4
             WHERE id = $1
             RETURNING *
             "#,
             model.id.0,
             model.name,
+            model.institution_id.0,
+            model.user_id.0,
         )
         .fetch_one(&mut *session)
         .await?;
         session.commit().await?;
-        Ok(updated_institution)
+        Ok(updated_account)
     }
 }
 
-impl DeleteRepository<InstitutionId, Institution> for InstitutionRepository {
+impl DeleteRepository<AccountId, Account> for AccountRepository {
     async fn delete(
         &self,
         mut session: PgTransaction<'_>,
-        id: InstitutionId,
-    ) -> Result<Institution, RepositoryError> {
-        let deleted_institution = query_as!(
-            Institution,
+        id: AccountId,
+    ) -> Result<Account, RepositoryError> {
+        let deleted_account = query_as!(
+            Account,
             r#"
-            DELETE FROM institution
+            DELETE FROM account
             WHERE id = $1
             RETURNING *
             "#,
@@ -129,6 +134,6 @@ impl DeleteRepository<InstitutionId, Institution> for InstitutionRepository {
         .fetch_one(&mut *session)
         .await?;
         session.commit().await?;
-        Ok(deleted_institution)
+        Ok(deleted_account)
     }
 }

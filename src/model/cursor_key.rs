@@ -26,6 +26,7 @@ use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
 
 use crate::{
     api::AppState,
+    model::Filter,
     resource::{CreateRepository, GetListRepository, cursor_key_repository::CursorKeyRepository},
     schema::Cursor,
 };
@@ -119,6 +120,19 @@ pub struct CursorKeyCreate {
 
 pub struct CursorKeyFilter {
     pub expires_at: Option<DateTime<Utc>>,
+}
+
+impl Filter for CursorKeyFilter {
+    fn push(self, query: &mut sqlx::QueryBuilder<'_, sqlx::Postgres>) {
+        if self.expires_at.is_none() {
+            return;
+        }
+        query.push(r#"WHERE "#);
+        if let Some(expires_at) = self.expires_at {
+            query.push(r#"expires_at IS NULL OR expires_at > "#);
+            query.push_bind(expires_at);
+        }
+    }
 }
 
 #[cached(
