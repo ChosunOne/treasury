@@ -44,7 +44,7 @@ macro_rules! generate_permission_combinations {
 
 #[derive(Clone)]
 pub struct UserServiceFactory {
-    enforcer: Arc<RwLock<Enforcer>>,
+    enforcer: Arc<Enforcer>,
 }
 
 impl Debug for UserServiceFactory {
@@ -54,7 +54,7 @@ impl Debug for UserServiceFactory {
 }
 
 impl UserServiceFactory {
-    pub fn new(enforcer: Arc<RwLock<Enforcer>>) -> Self {
+    pub fn new(enforcer: Arc<Enforcer>) -> Self {
         Self { enforcer }
     }
 
@@ -65,7 +65,6 @@ impl UserServiceFactory {
         connection_pool: Arc<RwLock<PgPool>>,
         config: ServiceFactoryConfig,
     ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
-        let enforcer = self.enforcer.read().await;
         let groups = token.groups();
         debug!("User Groups: {groups:?}");
         let mut read_level = ReadLevel::default();
@@ -79,7 +78,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if self.enforcer.enforce((group, "users", level_str))? {
                     read_level = level;
                     break 'outer;
                 }
@@ -92,7 +91,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if self.enforcer.enforce((group, "users", level_str))? {
                     create_level = level;
                     break 'outer;
                 }
@@ -106,7 +105,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if self.enforcer.enforce((group, "users", level_str))? {
                     update_level = level;
                     break 'outer;
                 }
@@ -120,7 +119,7 @@ impl UserServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "users", level_str))? {
+                if self.enforcer.enforce((group, "users", level_str))? {
                     delete_level = level;
                     break 'outer;
                 }

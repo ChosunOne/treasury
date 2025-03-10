@@ -44,7 +44,7 @@ macro_rules! generate_permission_combinations {
 
 #[derive(Clone)]
 pub struct InstitutionServiceFactory {
-    enforcer: Arc<RwLock<Enforcer>>,
+    enforcer: Arc<Enforcer>,
 }
 
 impl Debug for InstitutionServiceFactory {
@@ -54,7 +54,7 @@ impl Debug for InstitutionServiceFactory {
 }
 
 impl InstitutionServiceFactory {
-    pub fn new(enforcer: Arc<RwLock<Enforcer>>) -> Self {
+    pub fn new(enforcer: Arc<Enforcer>) -> Self {
         Self { enforcer }
     }
 
@@ -64,7 +64,6 @@ impl InstitutionServiceFactory {
         connection_pool: Arc<RwLock<PgPool>>,
         config: ServiceFactoryConfig,
     ) -> Result<Box<dyn InstitutionServiceMethods + Send>, ServiceFactoryError> {
-        let enforcer = self.enforcer.read().await;
         let groups = token.groups();
         debug!("User groups: {:?}", groups);
         let mut read_level = ReadLevel::default();
@@ -78,7 +77,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "institutions", level_str))? {
                     read_level = level;
                     break 'outer;
                 }
@@ -92,7 +91,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "institutions", level_str))? {
                     create_level = level;
                     break 'outer;
                 }
@@ -106,7 +105,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "institutions", level_str))? {
                     update_level = level;
                     break 'outer;
                 }
@@ -120,7 +119,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "institutions", level_str))? {
                     delete_level = level;
                     break 'outer;
                 }

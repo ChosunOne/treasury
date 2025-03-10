@@ -1,17 +1,11 @@
 use axum::serve;
 use casbin::{CoreApi, Enforcer};
 use sqlx::postgres::PgPoolOptions;
-use std::{
-    env::var,
-    sync::{Arc, OnceLock},
-};
+use std::{env::var, sync::Arc};
 use tokio::{net::TcpListener, sync::RwLock};
 use tracing::info;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
-use treasury::api::ApiV1;
-
-static AUTH_MODEL_PATH: OnceLock<String> = OnceLock::new();
-static AUTH_POLICY_PATH: OnceLock<String> = OnceLock::new();
+use treasury::{AUTH_MODEL_PATH, AUTH_POLICY_PATH, api::ApiV1};
 
 #[tokio::main]
 async fn main() {
@@ -28,11 +22,11 @@ async fn main() {
         var("AUTH_POLICY_PATH").expect("Failed to read `AUTH_POLICY_PATH` env variable")
     });
 
-    let enforcer = Arc::new(RwLock::new(
+    let enforcer = Arc::new(
         Enforcer::new(model_path, policies_path)
             .await
             .expect("Failed to load authorization policy"),
-    ));
+    );
 
     let database_url = var("DATABASE_URL").expect("Failed to read `DATABASE_URL` env variable");
     let pool = Arc::new(RwLock::new(

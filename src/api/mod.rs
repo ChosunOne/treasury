@@ -78,7 +78,7 @@ pub trait Api {
 pub struct ApiV1;
 
 impl ApiV1 {
-    pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<RwLock<Enforcer>>) -> Router {
+    pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<Enforcer>) -> Router {
         let mut api = OpenApi::default();
         let account_service_factory = AccountServiceFactory::new(Arc::clone(&enforcer));
         let user_service_factory = UserServiceFactory::new(Arc::clone(&enforcer));
@@ -205,5 +205,59 @@ impl IntoResponse for ApiError {
         };
 
         (status, ApiJson(ApiErrorResponse { message })).into_response()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::env::var;
+
+    use axum::body::Body;
+    use casbin::{CoreApi, Enforcer};
+    use rstest::{fixture, rstest};
+    use sqlx::{Pool, Postgres};
+    use tokio::sync::RwLock;
+    use tower::{Service, ServiceExt};
+
+    use crate::{AUTH_MODEL_PATH, AUTH_POLICY_PATH};
+
+    use super::*;
+
+    #[fixture]
+    async fn enforcer() -> Arc<Enforcer> {
+        let model_path: &'static str = AUTH_MODEL_PATH.get_or_init(|| {
+            var("AUTH_MODEL_PATH").expect("Failed to read `AUTH_MODEL_PATH` env variable")
+        });
+
+        let policies_path: &'static str = AUTH_POLICY_PATH.get_or_init(|| {
+            var("AUTH_POLICY_PATH").expect("Failed to read `AUTH_POLICY_PATH` env variable")
+        });
+
+        Arc::new(
+            Enforcer::new(model_path, policies_path)
+                .await
+                .expect("Failed to load authorization policy"),
+        )
+    }
+
+    #[rstest]
+    #[sqlx::test]
+    #[awt]
+    async fn it_rejects_an_unauthorized_request(
+        #[future] enforcer: Arc<Enforcer>,
+        #[ignore] pool: Pool<Postgres>,
+    ) {
+        let mut api = ApiV1::router(Arc::new(RwLock::new(pool)), enforcer).into_service();
+        let request = Request::builder()
+            .uri("/users")
+            .body(Body::empty())
+            .unwrap();
+        let response = ServiceExt::<Request<Body>>::ready(&mut api)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }
