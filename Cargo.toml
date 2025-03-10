@@ -54,6 +54,7 @@ tower = "^0.5.2"
 tower-http = {version = "^0.6.2", features = ["trace", "auth", "cors", "compression-gzip", "timeout"]}
 tracing = "^0.1.41"
 tracing-subscriber = {version = "^0.3.19", features = ["env-filter"]}
+urlencoding = "^2.1.3"
 uuid = {version = "^1.15.1", features = ["v4", "serde"]}
 zerocopy = {version = "^0.8.21", features = ["std", "simd"]}
 zerocopy-derive = "^0.8.21"

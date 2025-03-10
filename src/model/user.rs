@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use derive_more::{From, FromStr};
+use derive_more::{Display, From, FromStr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
@@ -10,6 +10,7 @@ use crate::model::Filter;
 #[derive(
     Debug,
     Default,
+    Display,
     Clone,
     Copy,
     PartialEq,

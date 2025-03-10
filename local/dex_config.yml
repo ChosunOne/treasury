@@ -86,3 +86,7 @@ staticPasswords:
       hash: $2y$10$4Kqx3RD2fExgfCQXGTqat.GiclNWB6AwGtUzDPDu6Z73kaY3G7.kq
       username: "user"
       userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+    - email: "user2@example.com"
+      hash: $2y$10$4Kqx3RD2fExgfCQXGTqat.GiclNWB6AwGtUzDPDu6Z73kaY3G7.kq
+      username: "user2"
+      userID: "96e88e65-c095-4047-9c19-c21caf253c1e"

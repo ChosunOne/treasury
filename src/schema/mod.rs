@@ -17,7 +17,7 @@ use schemars::{
     JsonSchema, SchemaGenerator,
     schema::{InstanceType, Schema, SchemaObject},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use sqlx::Acquire;
 use tracing::{debug, error};
 use zerocopy::FromBytes;
@@ -164,5 +164,33 @@ impl JsonSchema for Cursor {
         };
 
         Schema::Object(schema)
+    }
+}
+
+pub fn deserialize_url_encoded<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let encoded_str = String::deserialize(deserializer)?;
+
+    urlencoding::decode(&encoded_str)
+        .map_err(serde::de::Error::custom)
+        .map(|cow| cow.into_owned())
+}
+
+fn deserialize_optional_url_encoded<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+
+    match opt {
+        Some(encoded) => {
+            let decoded = urlencoding::decode(&encoded)
+                .map_err(serde::de::Error::custom)?
+                .into_owned();
+            Ok(Some(decoded))
+        }
+        None => Ok(None),
     }
 }

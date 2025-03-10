@@ -14,7 +14,7 @@ use crate::{
             Institution, InstitutionCreate, InstitutionFilter, InstitutionId, InstitutionUpdate,
         },
     },
-    schema::{Cursor, Pagination},
+    schema::{Cursor, Pagination, deserialize_optional_url_encoded},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
@@ -82,7 +82,11 @@ impl IntoResponse for GetResponse {
 pub struct GetListRequest {
     /// The name to filter on
     #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_url_encoded"
+    )]
     pub name: Option<String>,
 }
 
@@ -115,7 +119,7 @@ impl From<Institution> for GetListInstitution {
     }
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
     /// The list of institutions
     pub institutions: Vec<GetListInstitution>,

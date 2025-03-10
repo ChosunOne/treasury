@@ -106,7 +106,7 @@ impl From<GetListRequest> for AccountFilter {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
 pub struct GetListAccount {
     pub id: AccountId,
     pub created_at: String,
@@ -129,7 +129,17 @@ impl From<Account> for GetListAccount {
     }
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
+impl PartialEq<CreateResponse> for GetListAccount {
+    fn eq(&self, other: &CreateResponse) -> bool {
+        self.user_id == other.user_id
+            && self.name == other.name
+            && self.institution_id == other.institution_id
+            && self.created_at == other.created_at
+            && self.updated_at == other.updated_at
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo, Eq, PartialEq)]
 pub struct GetListResponse {
     /// The list of accounts
     pub accounts: Vec<GetListAccount>,
