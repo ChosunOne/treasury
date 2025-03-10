@@ -3490,6 +3490,7 @@ dependencies = [
  "derive_more",
  "futures-util",
  "http",
+ "http-body-util",
  "indexmap 2.7.1",
  "jsonwebtoken",
  "rand 0.9.0",

@@ -214,14 +214,30 @@ mod test {
 
     use axum::body::Body;
     use casbin::{CoreApi, Enforcer};
+    use http_body_util::BodyExt;
+    use reqwest::Client;
     use rstest::{fixture, rstest};
+    use serde_json::Value;
     use sqlx::{Pool, Postgres};
     use tokio::sync::RwLock;
     use tower::{Service, ServiceExt};
+    use tracing::subscriber::DefaultGuard;
+    use tracing_subscriber::{EnvFilter, FmtSubscriber}; // for `collect`
 
-    use crate::{AUTH_MODEL_PATH, AUTH_POLICY_PATH};
+    use crate::{
+        AUTH_MODEL_PATH, AUTH_POLICY_PATH,
+        schema::user::{CreateRequest, CreateResponse},
+    };
 
     use super::*;
+
+    #[fixture]
+    fn tracer() -> DefaultGuard {
+        let subscriber = FmtSubscriber::builder()
+            .with_env_filter(EnvFilter::from_default_env())
+            .finish();
+        tracing::subscriber::set_default(subscriber)
+    }
 
     #[fixture]
     async fn enforcer() -> Arc<Enforcer> {
@@ -238,6 +254,35 @@ mod test {
                 .await
                 .expect("Failed to load authorization policy"),
         )
+    }
+
+    #[fixture]
+    async fn user_auth_token() -> String {
+        let client = Client::new();
+        let client_id = var("DEX_STATIC_CLIENT_ID").expect("Failed to read `DEX_STATIC_CLIENT_ID`");
+        let client_secret =
+            var("DEX_STATIC_CLIENT_SECRET").expect("Failed to read `DEX_STATIC_CLIENT_SECRET`");
+        let response = client
+            .post("http://127.0.0.1:5556/dex/token")
+            .form(&[
+                ("grant_type", "password"),
+                ("client_id", &client_id),
+                ("client_secret", &client_secret),
+                ("username", "user@example.com"),
+                ("password", "password"),
+                ("scope", "openid profile email groups"),
+            ])
+            .send()
+            .await
+            .expect("Failed to get auth token");
+
+        let response_json = response.json::<Value>().await.unwrap();
+        let bearer = response_json["id_token"]
+            .to_string()
+            .trim_start_matches("\"")
+            .trim_end_matches("\"")
+            .to_string();
+        format!("Bearer {bearer}")
     }
 
     #[rstest]
@@ -259,5 +304,39 @@ mod test {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[rstest]
+    #[sqlx::test]
+    #[awt]
+    async fn it_creates_a_user(
+        #[future] enforcer: Arc<Enforcer>,
+        #[future] user_auth_token: String,
+        #[ignore] pool: Pool<Postgres>,
+    ) {
+        let mut api = ApiV1::router(Arc::new(RwLock::new(pool)), enforcer).into_service();
+        let request = Request::builder()
+            .method("POST")
+            .header("Authorization", user_auth_token)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .uri("/users")
+            .body(Body::from(
+                serde_json::to_vec(&CreateRequest {
+                    name: "Test User".into(),
+                })
+                .unwrap(),
+            ))
+            .unwrap();
+        let response = ServiceExt::<Request<Body>>::ready(&mut api)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let create_response = serde_json::from_slice::<CreateResponse>(&body[..]).unwrap();
+        assert_eq!(create_response.name, "Test User".to_owned());
     }
 }

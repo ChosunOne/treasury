@@ -126,6 +126,13 @@ impl<B: Send + 'static> AsyncAuthorizeRequest<B> for Authenticator {
                             .body(Body::default())
                             .unwrap())
                     }
+                    AuthenticationError::InvalidToken(e) => {
+                        debug!("{:?}", e.kind());
+                        Err(Response::builder()
+                            .status(StatusCode::UNAUTHORIZED)
+                            .body(Body::default())
+                            .unwrap())
+                    }
                     e => {
                         debug!("{e}");
                         Err(Response::builder()

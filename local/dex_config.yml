@@ -8,6 +8,7 @@ web:
   allowedOrigins: ["*"]
   allowedHeaders: ["Authorization", "X-Requested-With"]
 oauth2:
+  passwordConnector: local
   responseTypes: ["code", "id_token", "token"]
   skipApprovalScreen: true
   alwaysShowLoginScreen: false
@@ -77,3 +78,11 @@ staticClients:
       - 'http://localhost:8080/docs/oauth2-redirect.html'
     name: 'Treasury'
     secret: {{ .Env.DEX_STATIC_CLIENT_SECRET }}
+
+enablePasswordDB: true
+
+staticPasswords:
+    - email: "user@example.com"
+      hash: $2y$10$4Kqx3RD2fExgfCQXGTqat.GiclNWB6AwGtUzDPDu6Z73kaY3G7.kq
+      username: "user"
+      userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
