@@ -508,14 +508,14 @@ mod test {
     #[case("/users")]
     #[case("/accounts")]
     #[case("/institutions")]
-    #[sqlx::test]
     #[awt]
+    #[sqlx::test]
     async fn it_rejects_an_unauthorized_request(
         #[future] enforcer: Arc<Enforcer>,
         #[case] endpoint: String,
         #[ignore] pool: Pool<Postgres>,
     ) {
-        let mut api = ApiV1::router(Arc::new(RwLock::new(pool)), enforcer).into_service();
+        let mut api = create_api(pool, enforcer);
         let request = Request::builder()
             .uri(endpoint)
             .body(Body::empty())
@@ -527,6 +527,35 @@ mod test {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[rstest]
+    #[case("/users")]
+    #[case("/accounts")]
+    #[case("/institutions")]
+    #[awt]
+    #[sqlx::test]
+    async fn it_rejects_insufficient_permissions(
+        #[future] enforcer: Arc<Enforcer>,
+        #[future] user_auth_token: String,
+        #[case] endpoint: String,
+        #[ignore] pool: Pool<Postgres>,
+    ) {
+        let mut api = create_api(pool, enforcer);
+        let request = Request::builder()
+            .method("GET")
+            .header("Authorization", user_auth_token)
+            .header("Accept", "application/json")
+            .uri(endpoint)
+            .body(Body::empty())
+            .unwrap();
+        let response = ServiceExt::<Request<Body>>::ready(&mut api)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
 
     #[rstest]

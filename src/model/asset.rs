@@ -1,0 +1,85 @@
+use chrono::{DateTime, Utc};
+use derive_more::{From, FromStr};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, Type};
+use uuid::Uuid;
+
+use crate::model::Filter;
+
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    FromStr,
+    From,
+    Type,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+)]
+#[sqlx(transparent)]
+pub struct AssetId(pub Uuid);
+
+#[derive(Debug, Clone, FromRow)]
+pub struct Asset {
+    pub id: AssetId,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub name: String,
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct AssetCreate {
+    pub name: String,
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AssetUpdate {
+    pub name: Option<String>,
+    pub symbol: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AssetFilter {
+    pub id: Option<AssetId>,
+    pub name: Option<String>,
+    pub symbol: Option<String>,
+}
+
+impl Filter for AssetFilter {
+    fn push(self, query: &mut sqlx::QueryBuilder<'_, sqlx::Postgres>) {
+        if self.id.is_none() && self.name.is_none() && self.symbol.is_none() {
+            return;
+        }
+        query.push(r#"WHERE "#);
+
+        let has_id = self.id.is_some();
+        if let Some(id) = self.id {
+            query.push(r#"id = "#);
+            query.push_bind(id);
+        }
+
+        let has_name = self.name.is_some();
+        if let Some(name) = self.name {
+            if has_id {
+                query.push(r#" AND "#);
+            }
+            query.push(r#"name = "#);
+            query.push_bind(name);
+        }
+
+        if let Some(symbol) = self.symbol {
+            if has_id || has_name {
+                query.push(r#" AND "#);
+            }
+            query.push(r#"symbol = "#);
+            query.push_bind(symbol);
+        }
+    }
+}

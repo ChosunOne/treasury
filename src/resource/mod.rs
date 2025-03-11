@@ -1,4 +1,5 @@
 pub mod account_repository;
+pub mod asset_repository;
 pub mod cursor_key_repository;
 pub mod institution_repository;
 pub mod user_repository;
