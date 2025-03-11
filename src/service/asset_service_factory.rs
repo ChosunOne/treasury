@@ -18,12 +18,20 @@ use crate::resource::asset_repository::AssetRepository;
 use crate::service::ServiceFactoryError;
 use crate::service::asset_service::{AssetService, AssetServiceMethods};
 
-macro_rules! generate_permission_combinations {
-    ($read_level:expr, $create_level:expr, $update_level:expr, $delete_level:expr, $pool:expr;
+macro_rules! build_service {
+    ($permission_set:expr, $pool:expr;
      $([ $read:ident, $create:ident, $update:ident, $delete:ident ]),* $(,)*) => {
-        match ($read_level, $create_level, $update_level, $delete_level) {
+        match $permission_set {
             $(
-                (ReadLevel::$read, CreateLevel::$create, UpdateLevel::$update, DeleteLevel::$delete) => {
+                PermissionSet {
+                    read_level,
+                    create_level,
+                    update_level,
+                    delete_level
+                } if read_level == ReadLevel::$read &&
+                    create_level == CreateLevel::$create &&
+                    update_level == UpdateLevel::$update &&
+                    delete_level == DeleteLevel::$delete => {
                     Ok(Box::new(AssetService::<Policy<
                         AssetResource,
                         ActionSet<
@@ -49,8 +57,8 @@ impl AssetServiceFactory {
         connection_pool: Arc<RwLock<PgPool>>,
         permission_set: PermissionSet,
     ) -> Result<Box<dyn AssetServiceMethods + Send>, ServiceFactoryError> {
-        generate_permission_combinations!(
-            permission_set.read_level, permission_set.create_level, permission_set.update_level, permission_set.delete_level, connection_pool;
+        build_service!(
+            permission_set, connection_pool;
             [NoPermission, NoPermission, NoPermission, Delete],
             [NoPermission, NoPermission, Update, NoPermission],
             [NoPermission, NoPermission, Update, Delete],
