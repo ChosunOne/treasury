@@ -1,5 +1,7 @@
 pub mod account_service;
 pub mod account_service_factory;
+pub mod asset_service;
+pub mod asset_service_factory;
 pub mod institution_service;
 pub mod institution_service_factory;
 pub mod user_service;

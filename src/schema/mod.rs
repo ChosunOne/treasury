@@ -30,6 +30,7 @@ use crate::{
 };
 
 pub mod account;
+pub mod asset;
 pub mod institution;
 pub mod user;
 

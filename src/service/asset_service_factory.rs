@@ -7,16 +7,17 @@ use tokio::sync::RwLock;
 use tracing::debug;
 
 use crate::authentication::authenticated_token::AuthenticatedToken;
-use crate::authorization::actions::{
-    ActionSet, Create, CreateLevel, Delete, DeleteLevel, NoPermission, Read, ReadLevel, Update,
-    UpdateLevel,
+use crate::authorization::{
+    actions::{
+        ActionSet, Create, CreateLevel, Delete, DeleteLevel, NoPermission, Read, ReadLevel, Update,
+        UpdateLevel,
+    },
+    policy::Policy,
+    resources::Asset as AssetResource,
+    roles::Any,
 };
-use crate::authorization::policy::Policy;
-use crate::authorization::resources::Institution as InstitutionResource;
-use crate::authorization::roles::Any;
-
-use crate::resource::institution_repository::InstitutionRepository;
-use crate::service::institution_service::{InstitutionService, InstitutionServiceMethods};
+use crate::resource::asset_repository::AssetRepository;
+use crate::service::asset_service::{AssetService, AssetServiceMethods};
 use crate::service::{ServiceFactoryConfig, ServiceFactoryError};
 
 macro_rules! generate_permission_combinations {
@@ -25,8 +26,8 @@ macro_rules! generate_permission_combinations {
         match ($read_level, $create_level, $update_level, $delete_level) {
             $(
                 (ReadLevel::$read, CreateLevel::$create, UpdateLevel::$update, DeleteLevel::$delete) => {
-                    Ok(Box::new(InstitutionService::<Policy<
-                        InstitutionResource,
+                    Ok(Box::new(AssetService::<Policy<
+                        AssetResource,
                         ActionSet<
                             $read,
                             $create,
@@ -34,26 +35,26 @@ macro_rules! generate_permission_combinations {
                             $delete
                         >,
                         Any
-                    >>::new($pool, InstitutionRepository {})))
+                    >>::new($pool, AssetRepository {})))
                 },
             )*
-            _ => {Ok(Box::new(InstitutionService::<Policy<InstitutionResource, ActionSet, Any>>::new($pool, InstitutionRepository {})))}
+            _ => {Ok(Box::new(AssetService::<Policy<AssetResource, ActionSet, Any>>::new($pool, AssetRepository {})))}
         }
     };
 }
 
 #[derive(Clone)]
-pub struct InstitutionServiceFactory {
+pub struct AssetServiceFactory {
     enforcer: Arc<Enforcer>,
 }
 
-impl Debug for InstitutionServiceFactory {
+impl Debug for AssetServiceFactory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("InstitutionServiceFactory")
+        f.write_str("AssetServiceFactory")
     }
 }
 
-impl InstitutionServiceFactory {
+impl AssetServiceFactory {
     pub fn new(enforcer: Arc<Enforcer>) -> Self {
         Self { enforcer }
     }
@@ -63,7 +64,7 @@ impl InstitutionServiceFactory {
         token: AuthenticatedToken,
         connection_pool: Arc<RwLock<PgPool>>,
         config: ServiceFactoryConfig,
-    ) -> Result<Box<dyn InstitutionServiceMethods + Send>, ServiceFactoryError> {
+    ) -> Result<Box<dyn AssetServiceMethods + Send>, ServiceFactoryError> {
         let groups = token.groups();
         debug!("User groups: {groups:?}");
         let mut read_level = ReadLevel::default();
@@ -77,7 +78,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "assets", level_str))? {
                     read_level = level;
                     break 'outer;
                 }
@@ -91,7 +92,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "assets", level_str))? {
                     create_level = level;
                     break 'outer;
                 }
@@ -105,7 +106,7 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "assets", level_str))? {
                     update_level = level;
                     break 'outer;
                 }
@@ -119,12 +120,13 @@ impl InstitutionServiceFactory {
         {
             let level_str: &str = level.into();
             for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
+                if self.enforcer.enforce((group, "assets", level_str))? {
                     delete_level = level;
                     break 'outer;
                 }
             }
         }
+
         debug!("Delete level: {delete_level:?}");
         generate_permission_combinations!(
             read_level, create_level, update_level, delete_level, connection_pool;

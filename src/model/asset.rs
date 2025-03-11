@@ -47,35 +47,25 @@ pub struct AssetUpdate {
 
 #[derive(Debug, Clone, Default)]
 pub struct AssetFilter {
-    pub id: Option<AssetId>,
     pub name: Option<String>,
     pub symbol: Option<String>,
 }
 
 impl Filter for AssetFilter {
     fn push(self, query: &mut sqlx::QueryBuilder<'_, sqlx::Postgres>) {
-        if self.id.is_none() && self.name.is_none() && self.symbol.is_none() {
+        if self.name.is_none() && self.symbol.is_none() {
             return;
         }
         query.push(r#"WHERE "#);
 
-        let has_id = self.id.is_some();
-        if let Some(id) = self.id {
-            query.push(r#"id = "#);
-            query.push_bind(id);
-        }
-
         let has_name = self.name.is_some();
         if let Some(name) = self.name {
-            if has_id {
-                query.push(r#" AND "#);
-            }
             query.push(r#"name = "#);
             query.push_bind(name);
         }
 
         if let Some(symbol) = self.symbol {
-            if has_id || has_name {
+            if has_name {
                 query.push(r#" AND "#);
             }
             query.push(r#"symbol = "#);

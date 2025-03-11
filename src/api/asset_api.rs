@@ -26,30 +26,30 @@ use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
     authorization::actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
-    model::{cursor_key::CursorKey, institution::InstitutionId},
+    model::{asset::AssetId, cursor_key::CursorKey},
     schema::{
         Pagination,
-        institution::{
-            CreateRequest, CreateResponse, DeleteResponse, GetListInstitution, GetListRequest,
+        asset::{
+            CreateRequest, CreateResponse, DeleteResponse, GetListAsset, GetListRequest,
             GetListResponse, GetResponse, UpdateRequest, UpdateResponse,
         },
     },
-    service::{ServiceFactoryConfig, institution_service::InstitutionServiceMethods},
+    service::{ServiceFactoryConfig, asset_service::AssetServiceMethods},
 };
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct PathInstitutionId {
-    id: InstitutionId,
+pub struct PathAssetId {
+    id: AssetId,
 }
 
-pub struct InstitutionApiState {
+pub struct AssetApiState {
     pub authenticated_token: AuthenticatedToken,
-    pub institution_service: Box<dyn InstitutionServiceMethods + Send>,
+    pub asset_service: Box<dyn AssetServiceMethods + Send>,
 }
 
-impl OperationInput for InstitutionApiState {}
+impl OperationInput for AssetApiState {}
 
-impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
+impl FromRequestParts<Arc<AppState>> for AssetApiState {
     type Rejection = Response;
 
     async fn from_request_parts(
@@ -60,8 +60,8 @@ impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
             .extract_with_state::<AuthenticatedToken, _>(state)
             .await?;
 
-        let institution_service = state
-            .institution_service_factory
+        let asset_service = state
+            .asset_service_factory
             .build(
                 authenticated_token.clone(),
                 Arc::clone(&state.connection_pool),
@@ -79,42 +79,40 @@ impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
             })?;
         Ok(Self {
             authenticated_token,
-            institution_service,
+            asset_service,
         })
     }
 }
 
-pub struct InstitutionApi;
+pub struct AssetApi;
 
-impl InstitutionApi {
+impl AssetApi {
     pub async fn get_list(
-        state: InstitutionApiState,
+        state: AssetApiState,
         pagination: Pagination,
         cursor_key: CursorKey,
         Query(filter): Query<GetListRequest>,
     ) -> Result<GetListResponse, ApiError> {
         let offset = pagination.offset();
-        let institutions = state
-            .institution_service
+        let assets = state
+            .asset_service
             .get_list(offset, pagination.max_items, filter.into())
             .await?;
-        let response = GetListResponse::new(institutions, &pagination, &cursor_key)?;
+        let response = GetListResponse::new(assets, &pagination, &cursor_key)?;
         Ok(response)
     }
 
     pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_list_institution")
-            .tag("Institutions")
-            .description("Get a list of institutions.")
+        op.id("get_list_assets")
+            .tag("Assets")
+            .description("Get a list of assets.")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<GetListResponse>, _>(|res| {
-                res.description("A list of institutions")
+                res.description("A list of assets")
                     .example(GetListResponse {
-                        institutions: vec![GetListInstitution::default(); 3],
-                        next_cursor: "<cursor to get the next set of institutions>"
-                            .to_owned()
-                            .into(),
-                        prev_cursor: "<cursor to get the previous set of institutions>"
+                        assets: vec![GetListAsset::default(); 3],
+                        next_cursor: "<cursor to get the next set of assets>".to_owned().into(),
+                        prev_cursor: "<cursor to get the previous set of assets>"
                             .to_owned()
                             .into(),
                     })
@@ -122,122 +120,121 @@ impl InstitutionApi {
     }
 
     pub async fn get(
-        Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-        state: InstitutionApiState,
+        Path(PathAssetId { id }): Path<PathAssetId>,
+        state: AssetApiState,
     ) -> Result<GetResponse, ApiError> {
-        let institution = state.institution_service.get(id).await?;
-        let response = institution.into();
-        Ok(response)
+        let asset = state.asset_service.get(id).await?;
+        Ok(asset.into())
     }
 
     pub fn get_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_institution")
-            .tag("Institutions")
-            .description("Get an institution by id.")
+        op.id("get_asset")
+            .tag("Assets")
+            .description("Get an asset by id.")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<GetResponse>, _>(|res| {
-                res.description("An institution").example(GetResponse {
-                    id: InstitutionId::default(),
+                res.description("An asset").example(GetResponse {
+                    id: AssetId::default(),
                     created_at: Utc::now().to_rfc3339(),
                     updated_at: Utc::now().to_rfc3339(),
-                    name: "Institution Name".into(),
+                    name: "Asset Name".into(),
+                    symbol: "SYM".into(),
                 })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("Institution not found.")
+                res.description("Asset not found.")
                     .example(ApiErrorResponse {
-                        message: "Institution not found.".into(),
+                        message: "Asset not found.".into(),
                     })
             })
     }
 
     pub async fn create(
-        state: InstitutionApiState,
+        state: AssetApiState,
         Json(create_request): Json<CreateRequest>,
     ) -> Result<CreateResponse, ApiError> {
-        let institution = state
-            .institution_service
-            .create(create_request.into())
-            .await?;
-        Ok(institution.into())
+        let asset = state.asset_service.create(create_request.into()).await?;
+        Ok(asset.into())
     }
 
     pub fn create_docs(op: TransformOperation) -> TransformOperation {
-        op.id("create_institution")
-            .tag("Institutions")
-            .description("Create a new institution")
+        op.id("create_asset")
+            .tag("Assets")
+            .description("Create a new asset")
             .security_requirement("OpenIdConnect")
             .response_with::<201, Json<CreateResponse>, _>(|res| {
-                res.description("The newly created institution")
+                res.description("The newly created asset")
                     .example(CreateResponse {
-                        id: InstitutionId::default(),
+                        id: AssetId::default(),
                         created_at: Utc::now().to_rfc3339(),
                         updated_at: Utc::now().to_rfc3339(),
-                        name: "Institution Name".into(),
+                        name: "Asset Name".into(),
+                        symbol: "SYM".into(),
                     })
             })
     }
 
     pub async fn update(
-        state: InstitutionApiState,
-        Path(PathInstitutionId { id }): Path<PathInstitutionId>,
+        state: AssetApiState,
+        Path(PathAssetId { id }): Path<PathAssetId>,
         Json(update_request): Json<UpdateRequest>,
     ) -> Result<UpdateResponse, ApiError> {
-        let institution = state
-            .institution_service
+        let asset = state
+            .asset_service
             .update(id, update_request.into())
             .await?;
-        Ok(institution.into())
+        Ok(asset.into())
     }
 
     pub fn update_docs(op: TransformOperation) -> TransformOperation {
-        op.id("update_institution")
-            .tag("Institutions")
-            .description("Update an institution")
+        op.id("update_asset")
+            .tag("Assets")
+            .description("Update an asset")
             .security_requirement("OpenIdConnect")
             .response_with::<200, Json<UpdateResponse>, _>(|res| {
-                res.description("The newly updated institution")
+                res.description("The newly updated asset")
                     .example(UpdateResponse {
-                        id: InstitutionId::default(),
+                        id: AssetId::default(),
                         created_at: Utc::now().to_rfc3339(),
                         updated_at: Utc::now().to_rfc3339(),
-                        name: "Institution Name".into(),
+                        name: "Asset Name".into(),
+                        symbol: "SYM".into(),
                     })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("The institution was not found.")
+                res.description("The asset was not found.")
                     .example(ApiErrorResponse {
-                        message: "Institution not found.".into(),
+                        message: "Asset not found.".into(),
                     })
             })
     }
 
     pub async fn delete(
-        Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-        state: InstitutionApiState,
+        Path(PathAssetId { id }): Path<PathAssetId>,
+        state: AssetApiState,
     ) -> Result<DeleteResponse, ApiError> {
-        state.institution_service.delete(id).await?;
+        state.asset_service.delete(id).await?;
         Ok(DeleteResponse {})
     }
 
     pub fn delete_docs(op: TransformOperation) -> TransformOperation {
-        op.id("delete_institution")
-            .tag("Institutions")
-            .description("Delete an institution")
+        op.id("delete_asset")
+            .tag("Assets")
+            .description("Delete an asset")
             .security_requirement("OpenIdConnect")
             .response_with::<204, (), _>(|res| {
-                res.description("The institution was successfully deleted.")
+                res.description("The asset was successfully deleted.")
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("The institution was not found.")
+                res.description("The asset was not found.")
                     .example(ApiErrorResponse {
-                        message: "Institution not found.".into(),
+                        message: "Asset not found.".into(),
                     })
             })
     }
 }
 
-impl Api for InstitutionApi {
+impl Api for AssetApi {
     fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
         ApiRouter::new()
             .api_route("/", get_with(Self::get_list, Self::get_list_docs))
