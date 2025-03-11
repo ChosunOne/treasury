@@ -6,7 +6,10 @@ use crate::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
     },
-    authorization::actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
+    authorization::{
+        PermissionConfig, PermissionSet,
+        actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
+    },
     model::{
         cursor_key::CursorKey,
         user::{UserCreate, UserId},
@@ -20,7 +23,7 @@ use crate::{
             UpdateRequest as UserUpdateRequest, UpdateResponse as UserUpdateResponse,
         },
     },
-    service::{ServiceFactoryConfig, user_service::UserServiceMethods},
+    service::{user_service::UserServiceMethods, user_service_factory::UserServiceFactory},
 };
 use aide::{
     OperationInput,
@@ -75,24 +78,32 @@ impl FromRequestParts<Arc<AppState>> for UserApiState {
             .await
             .ok();
 
-        let user_service = state
-            .user_service_factory
-            .build(
-                authenticated_token.clone(),
-                registered_user,
-                Arc::clone(&state.connection_pool),
-                ServiceFactoryConfig {
-                    min_read_level: ReadLevel::Read,
-                    min_create_level: CreateLevel::Create,
-                    min_update_level: UpdateLevel::Update,
-                    min_delete_level: DeleteLevel::Delete,
-                },
-            )
-            .await
-            .map_err(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })?;
+        let permission_set = PermissionSet::new(
+            "users",
+            &state.enforcer,
+            &authenticated_token,
+            PermissionConfig {
+                min_read_level: ReadLevel::Read,
+                min_create_level: CreateLevel::Create,
+                min_update_level: UpdateLevel::Update,
+                min_delete_level: DeleteLevel::Delete,
+            },
+        )
+        .map_err(|e| {
+            error!("{e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+        })?;
+
+        let user_service = UserServiceFactory::build(
+            registered_user,
+            Arc::clone(&state.connection_pool),
+            permission_set,
+        )
+        .await
+        .map_err(|e| {
+            error!("{e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+        })?;
 
         Ok(Self {
             authenticated_token,

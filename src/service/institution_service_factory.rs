@@ -1,12 +1,9 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use casbin::{CoreApi, Enforcer};
 use sqlx::PgPool;
 use tokio::sync::RwLock;
-use tracing::debug;
 
-use crate::authentication::authenticated_token::AuthenticatedToken;
 use crate::authorization::actions::{
     ActionSet, Create, CreateLevel, Delete, DeleteLevel, NoPermission, Read, ReadLevel, Update,
     UpdateLevel,
@@ -15,9 +12,10 @@ use crate::authorization::policy::Policy;
 use crate::authorization::resources::Institution as InstitutionResource;
 use crate::authorization::roles::Any;
 
+use crate::authorization::PermissionSet;
 use crate::resource::institution_repository::InstitutionRepository;
+use crate::service::ServiceFactoryError;
 use crate::service::institution_service::{InstitutionService, InstitutionServiceMethods};
-use crate::service::{ServiceFactoryConfig, ServiceFactoryError};
 
 macro_rules! generate_permission_combinations {
     ($read_level:expr, $create_level:expr, $update_level:expr, $delete_level:expr, $pool:expr;
@@ -42,92 +40,16 @@ macro_rules! generate_permission_combinations {
     };
 }
 
-#[derive(Clone)]
-pub struct InstitutionServiceFactory {
-    enforcer: Arc<Enforcer>,
-}
-
-impl Debug for InstitutionServiceFactory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("InstitutionServiceFactory")
-    }
-}
+#[derive(Clone, Debug, Copy)]
+pub struct InstitutionServiceFactory;
 
 impl InstitutionServiceFactory {
-    pub fn new(enforcer: Arc<Enforcer>) -> Self {
-        Self { enforcer }
-    }
-
     pub async fn build(
-        &self,
-        token: AuthenticatedToken,
         connection_pool: Arc<RwLock<PgPool>>,
-        config: ServiceFactoryConfig,
+        permission_set: PermissionSet,
     ) -> Result<Box<dyn InstitutionServiceMethods + Send>, ServiceFactoryError> {
-        let groups = token.groups();
-        debug!("User groups: {groups:?}");
-        let mut read_level = ReadLevel::default();
-        let mut create_level = CreateLevel::default();
-        let mut update_level = UpdateLevel::default();
-        let mut delete_level = DeleteLevel::default();
-
-        'outer: for level in ReadLevel::levels()
-            .into_iter()
-            .filter(|&x| config.min_read_level <= x)
-        {
-            let level_str: &str = level.into();
-            for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
-                    read_level = level;
-                    break 'outer;
-                }
-            }
-        }
-        debug!("Read level: {read_level:?}");
-
-        'outer: for level in CreateLevel::levels()
-            .into_iter()
-            .filter(|&x| config.min_create_level <= x)
-        {
-            let level_str: &str = level.into();
-            for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
-                    create_level = level;
-                    break 'outer;
-                }
-            }
-        }
-        debug!("Create level: {create_level:?}");
-
-        'outer: for level in UpdateLevel::levels()
-            .into_iter()
-            .filter(|&x| config.min_update_level <= x)
-        {
-            let level_str: &str = level.into();
-            for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
-                    update_level = level;
-                    break 'outer;
-                }
-            }
-        }
-        debug!("Update level: {update_level:?}");
-
-        'outer: for level in DeleteLevel::levels()
-            .into_iter()
-            .filter(|&x| config.min_delete_level <= x)
-        {
-            let level_str: &str = level.into();
-            for group in groups.iter() {
-                if self.enforcer.enforce((group, "institutions", level_str))? {
-                    delete_level = level;
-                    break 'outer;
-                }
-            }
-        }
-        debug!("Delete level: {delete_level:?}");
         generate_permission_combinations!(
-            read_level, create_level, update_level, delete_level, connection_pool;
+            permission_set.read_level, permission_set.create_level, permission_set.update_level, permission_set.delete_level, connection_pool;
             [NoPermission, NoPermission, NoPermission, Delete],
             [NoPermission, NoPermission, Update, NoPermission],
             [NoPermission, NoPermission, Update, Delete],

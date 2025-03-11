@@ -39,12 +39,7 @@ use crate::{
         registered_user::RegisteredUser,
     },
     model::cursor_key::EncryptionError,
-    service::{
-        ServiceError, account_service_factory::AccountServiceFactory,
-        asset_service_factory::AssetServiceFactory,
-        institution_service_factory::InstitutionServiceFactory,
-        user_service_factory::UserServiceFactory,
-    },
+    service::ServiceError,
 };
 
 pub mod account_api;
@@ -82,10 +77,6 @@ pub struct ApiV1;
 impl ApiV1 {
     pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<Enforcer>) -> Router {
         let mut api = OpenApi::default();
-        let account_service_factory = AccountServiceFactory::new(Arc::clone(&enforcer));
-        let asset_service_factory = AssetServiceFactory::new(Arc::clone(&enforcer));
-        let user_service_factory = UserServiceFactory::new(Arc::clone(&enforcer));
-        let institution_service_factory = InstitutionServiceFactory::new(Arc::clone(&enforcer));
 
         let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
             var("CORS_ALLOWED_ORIGIN")
@@ -93,10 +84,7 @@ impl ApiV1 {
         });
         let state = Arc::new(AppState {
             connection_pool,
-            account_service_factory,
-            asset_service_factory,
-            institution_service_factory,
-            user_service_factory,
+            enforcer,
         });
         ApiRouter::<Arc<AppState>>::new()
             .nest("/accounts", AccountApi::router(Arc::clone(&state)))
@@ -143,13 +131,10 @@ impl ApiV1 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     pub connection_pool: Arc<RwLock<PgPool>>,
-    pub account_service_factory: AccountServiceFactory,
-    pub asset_service_factory: AssetServiceFactory,
-    pub user_service_factory: UserServiceFactory,
-    pub institution_service_factory: InstitutionServiceFactory,
+    pub enforcer: Arc<Enforcer>,
 }
 
 #[derive(FromRequest, OperationIo, Serialize)]

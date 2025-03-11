@@ -25,7 +25,10 @@ use tracing::error;
 use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
-    authorization::actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
+    authorization::{
+        PermissionConfig, PermissionSet,
+        actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
+    },
     model::{asset::AssetId, cursor_key::CursorKey},
     schema::{
         Pagination,
@@ -34,7 +37,7 @@ use crate::{
             GetListResponse, GetResponse, UpdateRequest, UpdateResponse,
         },
     },
-    service::{ServiceFactoryConfig, asset_service::AssetServiceMethods},
+    service::{asset_service::AssetServiceMethods, asset_service_factory::AssetServiceFactory},
 };
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
@@ -60,23 +63,29 @@ impl FromRequestParts<Arc<AppState>> for AssetApiState {
             .extract_with_state::<AuthenticatedToken, _>(state)
             .await?;
 
-        let asset_service = state
-            .asset_service_factory
-            .build(
-                authenticated_token.clone(),
-                Arc::clone(&state.connection_pool),
-                ServiceFactoryConfig {
-                    min_read_level: ReadLevel::Read,
-                    min_create_level: CreateLevel::Create,
-                    min_update_level: UpdateLevel::Update,
-                    min_delete_level: DeleteLevel::Delete,
-                },
-            )
-            .await
-            .map_err(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })?;
+        let permission_set = PermissionSet::new(
+            "assets",
+            &state.enforcer,
+            &authenticated_token,
+            PermissionConfig {
+                min_read_level: ReadLevel::Read,
+                min_create_level: CreateLevel::Create,
+                min_update_level: UpdateLevel::Update,
+                min_delete_level: DeleteLevel::Delete,
+            },
+        )
+        .map_err(|e| {
+            error!("{e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+        })?;
+
+        let asset_service =
+            AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set)
+                .await
+                .map_err(|e| {
+                    error!("{e}");
+                    (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+                })?;
         Ok(Self {
             authenticated_token,
             asset_service,
