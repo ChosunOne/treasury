@@ -12,7 +12,7 @@ use crate::{
         cursor_key::{CursorKey, EncryptionError},
         user::{User, UserFilter, UserId, UserUpdate},
     },
-    schema::{Cursor, Pagination},
+    schema::Pagination,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
@@ -150,26 +150,8 @@ impl GetListResponse {
         cursor_key: &CursorKey,
     ) -> Result<Self, EncryptionError> {
         let users = users.into_iter().map(|x| x.into()).collect::<Vec<_>>();
-
-        let next_cursor = if users.is_empty() {
-            None
-        } else {
-            let next_offset = pagination.offset() + users.len() as i64;
-            Some(cursor_key.encrypt_base64(Cursor {
-                offset: next_offset,
-            })?)
-        };
-        let prev_cursor = if pagination.offset() == 0 {
-            None
-        } else {
-            let prev_offset = pagination
-                .offset()
-                .saturating_sub(pagination.max_items.unwrap_or(100))
-                .max(0);
-            Some(cursor_key.encrypt_base64(Cursor {
-                offset: prev_offset,
-            })?)
-        };
+        let next_cursor = pagination.next_cursor(&users, cursor_key)?;
+        let prev_cursor = pagination.prev_cursor(cursor_key)?;
         Ok(Self {
             users,
             next_cursor,

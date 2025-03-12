@@ -25,7 +25,7 @@ use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
 
 use crate::{
     api::AppState,
-    model::cursor_key::{CursorKey, CursorKeyId},
+    model::cursor_key::{CursorKey, CursorKeyId, EncryptionError},
     resource::{GetRepository, RepositoryError, cursor_key_repository::CursorKeyRepository},
 };
 
@@ -50,6 +50,38 @@ pub struct Pagination {
 impl Pagination {
     pub fn offset(&self) -> i64 {
         self.cursor.map(|x| x.offset).unwrap_or(0)
+    }
+
+    pub fn next_cursor<T>(
+        &self,
+        results: &[T],
+        cursor_key: &CursorKey,
+    ) -> Result<Option<String>, EncryptionError> {
+        let next_cursor = if results.is_empty() {
+            None
+        } else {
+            let next_offset = self.offset() + results.len() as i64;
+            Some(cursor_key.encrypt_base64(Cursor {
+                offset: next_offset,
+            })?)
+        };
+
+        Ok(next_cursor)
+    }
+
+    pub fn prev_cursor(&self, cursor_key: &CursorKey) -> Result<Option<String>, EncryptionError> {
+        let prev_cursor = if self.offset() == 0 {
+            None
+        } else {
+            let prev_offset = self
+                .offset()
+                .saturating_sub(self.max_items.unwrap_or(100))
+                .max(0);
+            Some(cursor_key.encrypt_base64(Cursor {
+                offset: prev_offset,
+            })?)
+        };
+        Ok(prev_cursor)
     }
 }
 

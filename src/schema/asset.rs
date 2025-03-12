@@ -12,7 +12,7 @@ use crate::{
         asset::{Asset, AssetCreate, AssetFilter, AssetId, AssetUpdate},
         cursor_key::{CursorKey, EncryptionError},
     },
-    schema::{Cursor, Pagination, deserialize_optional_url_encoded},
+    schema::{Pagination, deserialize_optional_url_encoded},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
@@ -147,26 +147,8 @@ impl GetListResponse {
         cursor_key: &CursorKey,
     ) -> Result<Self, EncryptionError> {
         let assets = assets.into_iter().map(|x| x.into()).collect::<Vec<_>>();
-
-        let next_cursor = if assets.is_empty() {
-            None
-        } else {
-            let next_offset = pagination.offset() + assets.len() as i64;
-            Some(cursor_key.encrypt_base64(Cursor {
-                offset: next_offset,
-            })?)
-        };
-        let prev_cursor = if pagination.offset() == 0 {
-            None
-        } else {
-            let prev_offset = pagination
-                .offset()
-                .saturating_sub(pagination.max_items.unwrap_or(100))
-                .max(0);
-            Some(cursor_key.encrypt_base64(Cursor {
-                offset: prev_offset,
-            })?)
-        };
+        let next_cursor = pagination.next_cursor(&assets, cursor_key)?;
+        let prev_cursor = pagination.prev_cursor(cursor_key)?;
         Ok(Self {
             assets,
             next_cursor,
