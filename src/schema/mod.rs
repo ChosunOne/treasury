@@ -12,12 +12,13 @@ use base64::{
     engine::{GeneralPurpose, general_purpose},
 };
 use cached::proc_macro::cached;
+use chrono::{DateTime, Utc};
 use http::{StatusCode, request::Parts};
 use schemars::{
     JsonSchema, SchemaGenerator,
     schema::{InstanceType, Schema, SchemaObject},
 };
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serializer};
 use sqlx::Acquire;
 use tracing::{debug, error};
 use zerocopy::FromBytes;
@@ -211,7 +212,7 @@ where
         .map(|cow| cow.into_owned())
 }
 
-fn deserialize_optional_url_encoded<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+pub fn deserialize_optional_url_encoded<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -226,4 +227,22 @@ where
         }
         None => Ok(None),
     }
+}
+
+pub fn serialize_datetime<S>(datetime: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&datetime.to_rfc3339())
+}
+
+pub fn deserialize_datetime<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let string = String::deserialize(deserializer)?;
+    let datetime = DateTime::parse_from_rfc3339(&string)
+        .map_err(serde::de::Error::custom)?
+        .to_utc();
+    Ok(datetime)
 }

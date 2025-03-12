@@ -226,9 +226,8 @@ mod test {
             },
             institution::{GetListInstitution, GetListResponse as InstitutionGetListResponse},
             user::{
-                CreateRequest as UserCreateRequest, CreateResponse as UserCreateResponse,
-                DeleteResponse as UserDeleteResponse, GetResponse as UserGetResponse,
-                UpdateRequest as UserUpdateRequest, UpdateResponse as UserUpdateResponse,
+                CreateRequest as UserCreateRequest, UpdateRequest as UserUpdateRequest,
+                UserCreateResponse, UserDeleteResponse, UserGetResponse, UserUpdateResponse,
             },
         },
     };

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
@@ -17,10 +17,9 @@ use crate::{
     schema::{
         Pagination,
         user::{
-            CreateRequest as UserCreateRequest, CreateResponse as UserCreateResponse,
-            DeleteResponse as UserDeleteResponse, GetListRequest,
-            GetListResponse as UserGetListResponse, GetListUser, GetResponse as UserGetResponse,
-            UpdateRequest as UserUpdateRequest, UpdateResponse as UserUpdateResponse,
+            CreateRequest as UserCreateRequest, GetList, GetListRequest,
+            UpdateRequest as UserUpdateRequest, UserCreateResponse, UserDeleteResponse,
+            UserGetListResponse, UserGetResponse, UserResponse, UserUpdateResponse,
         },
     },
     service::{user_service::UserServiceMethods, user_service_factory::UserServiceFactory},
@@ -139,7 +138,7 @@ impl UserApi {
             .response_with::<200, Json<UserGetListResponse>, _>(|res| {
                 res.description("A list of users")
                     .example(UserGetListResponse {
-                        users: vec![GetListUser::default(); 3],
+                        users: vec![UserResponse::<GetList>::default(); 3],
                         next_cursor: "<cursor to get the next set of users>".to_owned().into(),
                         prev_cursor: "<cursor to get the previous set of users>"
                             .to_owned()
@@ -165,10 +164,11 @@ impl UserApi {
             .response_with::<200, Json<UserGetResponse>, _>(|res| {
                 res.description("A user").example(UserGetResponse {
                     id: UserId::default(),
-                    created_at: Utc::now().to_rfc3339(),
-                    updated_at: Utc::now().to_rfc3339(),
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
                     name: "User Name".into(),
                     email: "email@email.com".into(),
+                    _phantom: PhantomData,
                 })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
@@ -202,10 +202,11 @@ impl UserApi {
                 res.description("The newly created user")
                     .example(UserCreateResponse {
                         id: UserId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "User Name".into(),
                         email: "email@email.com".into(),
+                        _phantom: PhantomData,
                     })
             })
     }
@@ -228,10 +229,11 @@ impl UserApi {
                 res.description("The newly updated user")
                     .example(UserUpdateResponse {
                         id: UserId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "User Name".into(),
                         email: "email@email.com".into(),
+                        _phantom: PhantomData,
                     })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
