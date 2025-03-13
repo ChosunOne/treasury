@@ -33,36 +33,35 @@ use crate::{
         actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
     },
     model::{
-        account::{AccountCreate, AccountId},
-        cursor_key::CursorKey,
-        institution::InstitutionId,
-        user::UserId,
+        account::AccountId, asset::AssetId, cursor_key::CursorKey, transaction::TransactionId,
     },
     schema::{
         GetList, Pagination,
-        account::{
-            AccountCreateResponse, AccountGetResponse, AccountResponse, AccountUpdateResponse,
-            CreateRequest, DeleteResponse, GetListRequest, GetListResponse, UpdateRequest,
+        transaction::{
+            CreateRequest, DeleteResponse, GetListRequest, TransactionCreateResponse,
+            TransactionGetListResponse, TransactionGetResponse, TransactionResponse,
+            TransactionUpdateResponse, UpdateRequest,
         },
     },
     service::{
-        account_service::AccountServiceMethods, account_service_factory::AccountServiceFactory,
+        transaction_service::TransactionServiceMethods,
+        transaction_service_factory::TransactionServiceFactory,
     },
 };
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct PathAccountId {
-    id: AccountId,
+pub struct PathTransactionId {
+    id: TransactionId,
 }
 
-pub struct AccountApiState {
+pub struct TransactionApiState {
     pub authenticated_token: AuthenticatedToken,
-    pub account_service: Box<dyn AccountServiceMethods + Send>,
+    pub transaction_service: Box<dyn TransactionServiceMethods + Send>,
 }
 
-impl OperationInput for AccountApiState {}
+impl OperationInput for TransactionApiState {}
 
-impl FromRequestParts<Arc<AppState>> for AccountApiState {
+impl FromRequestParts<Arc<AppState>> for TransactionApiState {
     type Rejection = Response;
 
     async fn from_request_parts(
@@ -76,7 +75,7 @@ impl FromRequestParts<Arc<AppState>> for AccountApiState {
         let registered_user = parts.extract_with_state::<RegisteredUser, _>(state).await?;
 
         let permission_set = PermissionSet::new(
-            "accounts",
+            "transactions",
             &state.enforcer,
             &authenticated_token,
             PermissionConfig {
@@ -90,8 +89,7 @@ impl FromRequestParts<Arc<AppState>> for AccountApiState {
             error!("{e}");
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
         })?;
-
-        let account_service = AccountServiceFactory::build(
+        let transaction_service = TransactionServiceFactory::build(
             registered_user,
             Arc::clone(&state.connection_pool),
             permission_set,
@@ -99,40 +97,42 @@ impl FromRequestParts<Arc<AppState>> for AccountApiState {
 
         Ok(Self {
             authenticated_token,
-            account_service,
+            transaction_service,
         })
     }
 }
 
-pub struct AccountApi;
+pub struct TransactionApi;
 
-impl AccountApi {
+impl TransactionApi {
     pub async fn get_list(
-        state: AccountApiState,
+        state: TransactionApiState,
         pagination: Pagination,
         cursor_key: CursorKey,
         Query(filter): Query<GetListRequest>,
-    ) -> Result<GetListResponse, ApiError> {
+    ) -> Result<TransactionGetListResponse, ApiError> {
         let offset = pagination.offset();
-        let accounts = state
-            .account_service
+        let transactions = state
+            .transaction_service
             .get_list(offset, pagination.max_items, filter.into())
             .await?;
-        let response = GetListResponse::new(accounts, &pagination, &cursor_key)?;
+        let response = TransactionGetListResponse::new(transactions, &pagination, &cursor_key)?;
         Ok(response)
     }
 
     pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_list_account")
-            .tag("Accounts")
-            .description("Get a list of accounts.")
+        op.id("get_list_transaction")
+            .tag("Transactions")
+            .description("Get a list of transactions.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<GetListResponse>, _>(|res| {
-                res.description("A list of accounts.")
-                    .example(GetListResponse {
-                        accounts: vec![AccountResponse::<GetList>::default(); 3],
-                        next_cursor: "<cursor to get the next set of accounts>".to_owned().into(),
-                        prev_cursor: "<cursor to get the previous set of accounts"
+            .response_with::<200, Json<TransactionGetListResponse>, _>(|res| {
+                res.description("A list of users")
+                    .example(TransactionGetListResponse {
+                        transactions: vec![TransactionResponse::<GetList>::default(); 3],
+                        next_cursor: "<cursor to get the next set of transactions>"
+                            .to_owned()
+                            .into(),
+                        prev_cursor: "<cursor to get the previous set of transactions>"
                             .to_owned()
                             .into(),
                     })
@@ -140,97 +140,102 @@ impl AccountApi {
     }
 
     pub async fn get(
-        Path(PathAccountId { id }): Path<PathAccountId>,
-        state: AccountApiState,
-    ) -> Result<AccountGetResponse, ApiError> {
-        let account = state.account_service.get(id).await?;
-        let response = account.into();
-        Ok(response)
+        Path(PathTransactionId { id }): Path<PathTransactionId>,
+        state: TransactionApiState,
+    ) -> Result<TransactionGetResponse, ApiError> {
+        let transaction = state.transaction_service.get(id).await?;
+        Ok(transaction.into())
     }
 
     pub fn get_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_account")
-            .tag("Accounts")
-            .description("Get an account by id.")
+        op.id("get_transaction")
+            .tag("Transactions")
+            .description("Get a transaction by id.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<AccountGetResponse>, _>(|res| {
-                res.description("An account").example(AccountGetResponse {
-                    id: AccountId::default(),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    name: "Account Name".to_owned(),
-                    user_id: UserId::default(),
-                    institution_id: InstitutionId::default(),
-                    _phantom: PhantomData,
-                })
+            .response_with::<200, Json<TransactionGetResponse>, _>(|res| {
+                res.description("A transaction")
+                    .example(TransactionGetResponse {
+                        id: TransactionId::default(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
+                        posted_at: Utc::now(),
+                        description: "A transaction description".to_owned().into(),
+                        account_id: AccountId::default(),
+                        asset_id: AssetId::default(),
+                        quantity: 123,
+                        _phantom: PhantomData,
+                    })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("Account not found.")
+                res.description("Transaction not found.")
                     .example(ApiErrorResponse {
-                        message: "Account not found.".into(),
+                        message: "Transaction not found.".into(),
                     })
             })
     }
 
     pub async fn create(
-        state: AccountApiState,
-        registered_user: RegisteredUser,
+        state: TransactionApiState,
         Json(create_request): Json<CreateRequest>,
-    ) -> Result<AccountCreateResponse, ApiError> {
-        let account_create = AccountCreate {
-            name: create_request.name,
-            institution_id: create_request.institution_id,
-            user_id: registered_user.id(),
-        };
-        let account = state.account_service.create(account_create).await?;
-        Ok(account.into())
+    ) -> Result<TransactionCreateResponse, ApiError> {
+        let transaction = state
+            .transaction_service
+            .create(create_request.into())
+            .await?;
+
+        Ok(transaction.into())
     }
 
     pub fn create_docs(op: TransformOperation) -> TransformOperation {
-        op.id("create_account")
-            .tag("Accounts")
-            .description("Create a new account.")
+        op.id("create_transaction")
+            .tag("Transactions")
+            .description("Create a new transaction.")
             .security_requirement("OpenIdConnect")
-            .response_with::<201, Json<AccountCreateResponse>, _>(|res| {
-                res.description("The newly created account.")
-                    .example(AccountCreateResponse {
-                        id: AccountId::default(),
+            .response_with::<201, Json<TransactionCreateResponse>, _>(|res| {
+                res.description("The newly created transaction.").example(
+                    TransactionCreateResponse {
+                        id: TransactionId::default(),
                         created_at: Utc::now(),
                         updated_at: Utc::now(),
-                        name: "Account Name".to_owned(),
-                        user_id: UserId::default(),
-                        institution_id: InstitutionId::default(),
+                        posted_at: Utc::now(),
+                        description: "A transaction description".to_owned().into(),
+                        account_id: AccountId::default(),
+                        asset_id: AssetId::default(),
+                        quantity: 123,
                         _phantom: PhantomData,
-                    })
+                    },
+                )
             })
     }
 
     pub async fn update(
-        state: AccountApiState,
-        Path(PathAccountId { id }): Path<PathAccountId>,
+        state: TransactionApiState,
+        Path(PathTransactionId { id }): Path<PathTransactionId>,
         Json(update_request): Json<UpdateRequest>,
-    ) -> Result<AccountUpdateResponse, ApiError> {
-        let account = state
-            .account_service
+    ) -> Result<TransactionUpdateResponse, ApiError> {
+        let transaction = state
+            .transaction_service
             .update(id, update_request.into())
             .await?;
-        Ok(account.into())
+        Ok(transaction.into())
     }
 
     pub fn update_docs(op: TransformOperation) -> TransformOperation {
-        op.id("update_account")
-            .tag("Accounts")
-            .description("Update an account.")
+        op.id("update_transaction")
+            .tag("Transactions")
+            .description("Update a transaction.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<AccountUpdateResponse>, _>(|res| {
+            .response_with::<200, Json<TransactionUpdateResponse>, _>(|res| {
                 res.description("The newly updated account.")
-                    .example(AccountUpdateResponse {
-                        id: AccountId::default(),
+                    .example(TransactionUpdateResponse {
+                        id: TransactionId::default(),
                         created_at: Utc::now(),
                         updated_at: Utc::now(),
-                        name: "Account Name".into(),
-                        user_id: UserId::default(),
-                        institution_id: InstitutionId::default(),
+                        posted_at: Utc::now(),
+                        description: "A transaction description".to_owned().into(),
+                        account_id: AccountId::default(),
+                        asset_id: AssetId::default(),
+                        quantity: 123,
                         _phantom: PhantomData,
                     })
             })
@@ -243,20 +248,20 @@ impl AccountApi {
     }
 
     pub async fn delete(
-        Path(PathAccountId { id }): Path<PathAccountId>,
-        state: AccountApiState,
+        Path(PathTransactionId { id }): Path<PathTransactionId>,
+        state: TransactionApiState,
     ) -> Result<DeleteResponse, ApiError> {
-        state.account_service.delete(id).await?;
+        state.transaction_service.delete(id).await?;
         Ok(DeleteResponse {})
     }
 
     pub fn delete_docs(op: TransformOperation) -> TransformOperation {
-        op.id("delete_account")
-            .tag("Accounts")
-            .description("Delete an account.")
+        op.id("delete_transaction")
+            .tag("Transactions")
+            .description("Delete a transaction.")
             .security_requirement("OpenIdConnect")
             .response_with::<204, (), _>(|res| {
-                res.description("The account was successfully deleted.")
+                res.description("The transaction was successfully deleted.")
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
                 res.description("The account was not found.")
@@ -267,8 +272,8 @@ impl AccountApi {
     }
 }
 
-impl Api for AccountApi {
-    fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
+impl Api for TransactionApi {
+    fn router(state: Arc<AppState>) -> aide::axum::ApiRouter<Arc<AppState>> {
         ApiRouter::new()
             .api_route("/", get_with(Self::get_list, Self::get_list_docs))
             .api_route("/{id}", get_with(Self::get, Self::get_docs))
@@ -280,6 +285,5 @@ impl Api for AccountApi {
                     .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
                     .layer(from_fn_with_state(state.clone(), set_user_groups)),
             )
-            .with_state(state)
     }
 }

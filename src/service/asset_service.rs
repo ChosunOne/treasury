@@ -2,7 +2,6 @@ use std::{marker::PhantomData, sync::Arc};
 
 use async_trait::async_trait;
 use sqlx::{Acquire, PgPool};
-use tokio::sync::RwLock;
 
 use crate::{
     authorization::{
@@ -34,13 +33,13 @@ impl<T: ServiceCrud<AssetId, Asset, AssetFilter, AssetCreate, AssetUpdate>> Asse
 }
 
 pub struct AssetService<Policy> {
-    connection_pool: Arc<RwLock<PgPool>>,
+    connection_pool: Arc<PgPool>,
     asset_repository: AssetRepository,
     policy: PhantomData<Policy>,
 }
 
 impl<Policy> AssetService<Policy> {
-    pub fn new(connection_pool: Arc<RwLock<PgPool>>, asset_repository: AssetRepository) -> Self {
+    pub fn new(connection_pool: Arc<PgPool>, asset_repository: AssetRepository) -> Self {
         Self {
             connection_pool,
             asset_repository,
@@ -79,8 +78,10 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: AssetId) -> Result<Asset, ServiceError> {
-        let pool = self.connection_pool.read().await;
-        let asset = self.asset_repository.get(pool.begin().await?, id).await?;
+        let asset = self
+            .asset_repository
+            .get(self.connection_pool.begin().await?, id)
+            .await?;
         Ok(asset)
     }
 }
@@ -96,10 +97,9 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         limit: Option<i64>,
         filter: AssetFilter,
     ) -> Result<Vec<Asset>, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let assets = self
             .asset_repository
-            .get_list(pool.begin().await?, offset, limit, filter)
+            .get_list(self.connection_pool.begin().await?, offset, limit, filter)
             .await?;
         Ok(assets)
     }
@@ -121,10 +121,9 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: AssetCreate) -> Result<Asset, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let asset = self
             .asset_repository
-            .create(pool.begin().await?, create_model)
+            .create(self.connection_pool.begin().await?, create_model)
             .await?;
         Ok(asset)
     }
@@ -150,8 +149,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn update(&self, id: AssetId, update_model: AssetUpdate) -> Result<Asset, ServiceError> {
-        let pool = self.connection_pool.read().await;
-        let mut transaction = pool.begin().await?;
+        let mut transaction = self.connection_pool.begin().await?;
         let mut asset = self
             .asset_repository
             .get(transaction.begin().await?, id)
@@ -187,10 +185,9 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn delete(&self, id: AssetId) -> Result<Asset, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let asset = self
             .asset_repository
-            .delete(pool.begin().await?, id)
+            .delete(self.connection_pool.begin().await?, id)
             .await?;
         Ok(asset)
     }

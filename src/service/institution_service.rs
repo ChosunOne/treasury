@@ -2,7 +2,6 @@ use std::{marker::PhantomData, sync::Arc};
 
 use async_trait::async_trait;
 use sqlx::{Acquire, PgPool};
-use tokio::sync::RwLock;
 
 use crate::{
     authorization::{
@@ -41,14 +40,14 @@ impl<
 }
 
 pub struct InstitutionService<Policy> {
-    connection_pool: Arc<RwLock<PgPool>>,
+    connection_pool: Arc<PgPool>,
     institution_repository: InstitutionRepository,
     policy: PhantomData<Policy>,
 }
 
 impl<Policy> InstitutionService<Policy> {
     pub fn new(
-        connection_pool: Arc<RwLock<PgPool>>,
+        connection_pool: Arc<PgPool>,
         institution_repository: InstitutionRepository,
     ) -> Self {
         Self {
@@ -96,10 +95,9 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     >
 {
     async fn get(&self, id: InstitutionId) -> Result<Institution, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let institution = self
             .institution_repository
-            .get(pool.begin().await?, id)
+            .get(self.connection_pool.begin().await?, id)
             .await?;
         Ok(institution)
     }
@@ -118,10 +116,9 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         limit: Option<i64>,
         filter: InstitutionFilter,
     ) -> Result<Vec<Institution>, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let institutions = self
             .institution_repository
-            .get_list(pool.begin().await?, offset, limit, filter)
+            .get_list(self.connection_pool.begin().await?, offset, limit, filter)
             .await?;
         Ok(institutions)
     }
@@ -147,10 +144,9 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
     >
 {
     async fn create(&self, create_model: InstitutionCreate) -> Result<Institution, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let institution = self
             .institution_repository
-            .create(pool.begin().await?, create_model)
+            .create(self.connection_pool.begin().await?, create_model)
             .await?;
         Ok(institution)
     }
@@ -184,8 +180,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
         id: InstitutionId,
         update_model: InstitutionUpdate,
     ) -> Result<Institution, ServiceError> {
-        let pool = self.connection_pool.read().await;
-        let mut transaction = pool.begin().await?;
+        let mut transaction = self.connection_pool.begin().await?;
         let mut institution = self
             .institution_repository
             .get(transaction.begin().await?, id)
@@ -222,10 +217,9 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
     >
 {
     async fn delete(&self, id: InstitutionId) -> Result<Institution, ServiceError> {
-        let pool = self.connection_pool.read().await;
         let institution = self
             .institution_repository
-            .delete(pool.begin().await?, id)
+            .delete(self.connection_pool.begin().await?, id)
             .await?;
         Ok(institution)
     }

@@ -154,7 +154,6 @@ impl IntoResponse for GetListResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UpdateRequest {
-    #[schemars(with = "String")]
     pub name: String,
 }
 

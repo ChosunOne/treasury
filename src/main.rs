@@ -2,7 +2,7 @@ use axum::serve;
 use casbin::{CoreApi, Enforcer};
 use sqlx::postgres::PgPoolOptions;
 use std::{env::var, sync::Arc};
-use tokio::{net::TcpListener, sync::RwLock};
+use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 use treasury::{AUTH_MODEL_PATH, AUTH_POLICY_PATH, api::ApiV1};
@@ -29,13 +29,13 @@ async fn main() {
     );
 
     let database_url = var("DATABASE_URL").expect("Failed to read `DATABASE_URL` env variable");
-    let pool = Arc::new(RwLock::new(
+    let pool = Arc::new(
         PgPoolOptions::new()
             .max_connections(5)
             .connect(&database_url)
             .await
             .expect("Failed to connect to database."),
-    ));
+    );
 
     info!("Connected to database");
 

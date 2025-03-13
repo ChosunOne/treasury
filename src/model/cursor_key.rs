@@ -143,16 +143,10 @@ impl Filter for CursorKeyFilter {
 )]
 async fn get_cursor_key(state: &Arc<AppState>) -> Result<CursorKey, Response> {
     debug!("Refreshing cursor key.");
-    let mut connection = state
-        .connection_pool
-        .read()
-        .await
-        .acquire()
-        .await
-        .map_err(|e| {
-            error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-        })?;
+    let mut connection = state.connection_pool.begin().await.map_err(|e| {
+        error!("{e}");
+        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+    })?;
 
     let session = connection.begin().await.map_err(|e| {
         error!("{e}");

@@ -4,6 +4,7 @@ pub mod account;
 pub mod asset;
 pub mod cursor_key;
 pub mod institution;
+pub mod transaction;
 pub mod user;
 
 pub trait Filter {

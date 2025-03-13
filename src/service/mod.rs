@@ -4,6 +4,8 @@ pub mod asset_service;
 pub mod asset_service_factory;
 pub mod institution_service;
 pub mod institution_service_factory;
+pub mod transaction_service;
+pub mod transaction_service_factory;
 pub mod user_service;
 pub mod user_service_factory;
 

@@ -2,6 +2,7 @@ pub mod account_repository;
 pub mod asset_repository;
 pub mod cursor_key_repository;
 pub mod institution_repository;
+pub mod transaction_repository;
 pub mod user_repository;
 
 use derive_more::Display;
@@ -55,7 +56,7 @@ pub trait UpdateRepository<Model> {
     fn update(
         &self,
         session: PgTransaction,
-        model: Model,
+        update_model: Model,
     ) -> impl Future<Output = Result<Model, RepositoryError>>;
 }
 

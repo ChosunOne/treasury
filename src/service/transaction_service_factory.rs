@@ -1,19 +1,22 @@
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use sqlx::PgPool;
 
-use crate::authentication::registered_user::RegisteredUser;
-use crate::authorization::PermissionSet;
-use crate::authorization::actions::{
-    ActionSet, Create, CreateAll, CreateLevel, Delete, DeleteAll, DeleteLevel, NoPermission, Read,
-    ReadAll, ReadLevel, Update, UpdateAll, UpdateLevel,
+use crate::{
+    authentication::registered_user::RegisteredUser,
+    authorization::{
+        PermissionSet,
+        actions::{
+            ActionSet, Create, CreateAll, CreateLevel, Delete, DeleteAll, DeleteLevel,
+            NoPermission, Read, ReadAll, ReadLevel, Update, UpdateAll, UpdateLevel,
+        },
+        policy::Policy,
+        resources::Transaction as TransactionResource,
+        roles::Any,
+    },
+    resource::transaction_repository::TransactionRepository,
+    service::transaction_service::{TransactionService, TransactionServiceMethods},
 };
-use crate::authorization::policy::Policy;
-use crate::authorization::resources::Account as AccountResource;
-use crate::authorization::roles::Any;
-use crate::resource::account_repository::AccountRepository;
-use crate::service::account_service::{AccountService, AccountServiceMethods};
 
 macro_rules! build_service {
     ($permission_set:expr, $pool:expr, $user:expr;
@@ -29,8 +32,8 @@ macro_rules! build_service {
                     create_level == CreateLevel::$create &&
                     update_level == UpdateLevel::$update &&
                     delete_level == DeleteLevel::$delete => {
-                    Box::new(AccountService::<Policy<
-                        AccountResource,
+                    Box::new(TransactionService::<Policy<
+                        TransactionResource,
                         ActionSet<
                             $read,
                             $create,
@@ -38,23 +41,23 @@ macro_rules! build_service {
                             $delete
                         >,
                         Any
-                    >>::new($pool, AccountRepository {}, $user))
+                    >>::new($pool, TransactionRepository {}, $user))
                 },
             )*
-            _ => {Box::new(AccountService::<Policy<AccountResource, ActionSet, Any>>::new($pool, AccountRepository {}, $user))}
+            _ => {Box::new(TransactionService::<Policy<TransactionResource, ActionSet, Any>>::new($pool, TransactionRepository {}, $user))}
         }
     };
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct AccountServiceFactory;
+pub struct TransactionServiceFactory;
 
-impl AccountServiceFactory {
+impl TransactionServiceFactory {
     pub fn build(
         user: RegisteredUser,
         connection_pool: Arc<PgPool>,
         permission_set: PermissionSet,
-    ) -> Box<dyn AccountServiceMethods + Send> {
+    ) -> Box<dyn TransactionServiceMethods + Send> {
         build_service!(permission_set, connection_pool, user;
             [NoPermission, NoPermission, NoPermission, Delete],
             [NoPermission, NoPermission, NoPermission, DeleteAll],

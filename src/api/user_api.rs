@@ -97,8 +97,7 @@ impl FromRequestParts<Arc<AppState>> for UserApiState {
             registered_user,
             Arc::clone(&state.connection_pool),
             permission_set,
-        )
-        .await;
+        );
 
         Ok(Self {
             authenticated_token,

@@ -6,7 +6,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use http::{StatusCode, request::Parts};
-use sqlx::Acquire;
 use tracing::error;
 
 use crate::{
@@ -49,19 +48,9 @@ impl FromRequestParts<Arc<AppState>> for RegisteredUser {
             .map_err(|err| err.into_response())?;
 
         let user_repository = UserRepository {};
-        let mut connection = state
-            .connection_pool
-            .read()
-            .await
-            .acquire()
-            .await
-            .map_err(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })?;
         let user = user_repository
             .get_list(
-                connection.begin().await.map_err(|e| {
+                state.connection_pool.begin().await.map_err(|e| {
                     error!("{e}");
                     (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
                 })?,
@@ -102,19 +91,9 @@ impl OptionalFromRequestParts<Arc<AppState>> for RegisteredUser {
             .map_err(|err| err.into_response())?;
 
         let user_repository = UserRepository {};
-        let mut connection = state
-            .connection_pool
-            .read()
-            .await
-            .acquire()
-            .await
-            .map_err(|e| {
-                error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-            })?;
         let registered_user = user_repository
             .get_list(
-                connection.begin().await.map_err(|e| {
+                state.connection_pool.begin().await.map_err(|e| {
                     error!("{e}");
                     (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
                 })?,

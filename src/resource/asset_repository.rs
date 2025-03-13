@@ -7,7 +7,7 @@ use crate::{
     },
     resource::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, MAX_LIMIT,
-        UpdateRepository,
+        RepositoryError, UpdateRepository,
     },
 };
 
@@ -19,7 +19,7 @@ impl GetRepository<AssetId, Asset> for AssetRepository {
         &self,
         mut session: PgTransaction<'_>,
         id: AssetId,
-    ) -> Result<Asset, super::RepositoryError> {
+    ) -> Result<Asset, RepositoryError> {
         let asset = query_as!(
             Asset,
             r#"
@@ -41,7 +41,7 @@ impl GetListRepository<Asset, AssetFilter> for AssetRepository {
         offset: i64,
         limit: Option<i64>,
         filter: AssetFilter,
-    ) -> Result<Vec<Asset>, super::RepositoryError> {
+    ) -> Result<Vec<Asset>, RepositoryError> {
         let offset = offset.max(0);
         let limit = limit.map(|x| x.clamp(1, MAX_LIMIT)).unwrap_or(MAX_LIMIT);
 
@@ -70,7 +70,7 @@ impl CreateRepository<AssetCreate, Asset> for AssetRepository {
         &self,
         mut session: PgTransaction<'_>,
         create_model: AssetCreate,
-    ) -> Result<Asset, super::RepositoryError> {
+    ) -> Result<Asset, RepositoryError> {
         let new_asset = query_as!(
             Asset,
             r#"
@@ -93,7 +93,7 @@ impl UpdateRepository<Asset> for AssetRepository {
         &self,
         mut session: PgTransaction<'_>,
         model: Asset,
-    ) -> Result<Asset, super::RepositoryError> {
+    ) -> Result<Asset, RepositoryError> {
         let updated_asset = query_as!(
             Asset,
             r#"
@@ -118,7 +118,7 @@ impl DeleteRepository<AssetId, Asset> for AssetRepository {
         &self,
         mut session: PgTransaction<'_>,
         id: AssetId,
-    ) -> Result<Asset, super::RepositoryError> {
+    ) -> Result<Asset, RepositoryError> {
         let deleted_asset = query_as!(
             Asset,
             r#"

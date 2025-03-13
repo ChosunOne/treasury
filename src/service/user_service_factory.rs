@@ -2,7 +2,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use sqlx::PgPool;
-use tokio::sync::RwLock;
 
 use crate::authentication::registered_user::RegisteredUser;
 use crate::authorization::PermissionSet;
@@ -51,9 +50,9 @@ macro_rules! build_service {
 pub struct UserServiceFactory;
 
 impl UserServiceFactory {
-    pub async fn build(
+    pub fn build(
         user: Option<RegisteredUser>,
-        connection_pool: Arc<RwLock<PgPool>>,
+        connection_pool: Arc<PgPool>,
         permission_set: PermissionSet,
     ) -> Box<dyn UserServiceMethods + Send> {
         build_service!(

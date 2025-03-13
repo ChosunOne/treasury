@@ -57,15 +57,16 @@ impl Filter for AssetFilter {
             return;
         }
         query.push(r#"WHERE "#);
+        let mut has_prev_filter = false;
 
-        let has_name = self.name.is_some();
         if let Some(name) = self.name {
+            has_prev_filter |= true;
             query.push(r#"name = "#);
             query.push_bind(name);
         }
 
         if let Some(symbol) = self.symbol {
-            if has_name {
+            if has_prev_filter {
                 query.push(r#" AND "#);
             }
             query.push(r#"symbol = "#);

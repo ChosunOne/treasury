@@ -24,7 +24,6 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use sqlx::PgPool;
 use thiserror::Error;
-use tokio::sync::RwLock;
 use tower::ServiceBuilder;
 use tower_http::{
     compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
@@ -33,7 +32,10 @@ use tracing::error;
 use user_api::UserApi;
 
 use crate::{
-    api::{account_api::AccountApi, asset_api::AssetApi, institution_api::InstitutionApi},
+    api::{
+        account_api::AccountApi, asset_api::AssetApi, institution_api::InstitutionApi,
+        transaction_api::TransactionApi,
+    },
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::AUTH_WELL_KNOWN_URI,
         registered_user::RegisteredUser,
@@ -46,6 +48,7 @@ pub mod account_api;
 pub mod asset_api;
 pub mod docs_api;
 pub mod institution_api;
+pub mod transaction_api;
 pub mod user_api;
 
 static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
@@ -75,7 +78,7 @@ pub trait Api {
 pub struct ApiV1;
 
 impl ApiV1 {
-    pub fn router(connection_pool: Arc<RwLock<PgPool>>, enforcer: Arc<Enforcer>) -> Router {
+    pub fn router(connection_pool: Arc<PgPool>, enforcer: Arc<Enforcer>) -> Router {
         let mut api = OpenApi::default();
 
         let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
@@ -89,6 +92,7 @@ impl ApiV1 {
         ApiRouter::<Arc<AppState>>::new()
             .nest("/accounts", AccountApi::router(Arc::clone(&state)))
             .nest("/assets", AssetApi::router(Arc::clone(&state)))
+            .nest("/transactions", TransactionApi::router(Arc::clone(&state)))
             .nest("/users", UserApi::router(Arc::clone(&state)))
             .nest("/institutions", InstitutionApi::router(Arc::clone(&state)))
             .nest("/docs", DocsApi::router(Arc::clone(&state)))
@@ -133,7 +137,7 @@ impl ApiV1 {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub connection_pool: Arc<RwLock<PgPool>>,
+    pub connection_pool: Arc<PgPool>,
     pub enforcer: Arc<Enforcer>,
 }
 
@@ -211,7 +215,6 @@ mod test {
     use rstest::{fixture, rstest};
     use serde_json::Value;
     use sqlx::{Pool, Postgres};
-    use tokio::sync::RwLock;
     use tower::{Service, ServiceExt};
     use tracing::subscriber::DefaultGuard;
     use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -409,7 +412,7 @@ mod test {
     }
 
     fn create_api(pool: PgPool, enforcer: Arc<Enforcer>) -> RouterIntoService<Body> {
-        ApiV1::router(Arc::new(RwLock::new(pool)), enforcer).into_service()
+        ApiV1::router(Arc::new(pool), enforcer).into_service()
     }
 
     #[fixture]

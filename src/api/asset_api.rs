@@ -80,7 +80,7 @@ impl FromRequestParts<Arc<AppState>> for AssetApiState {
         })?;
 
         let asset_service =
-            AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set).await;
+            AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set);
 
         Ok(Self {
             authenticated_token,

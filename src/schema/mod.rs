@@ -19,7 +19,6 @@ use schemars::{
     schema::{InstanceType, Schema, SchemaObject},
 };
 use serde::{Deserialize, Deserializer, Serializer};
-use sqlx::Acquire;
 use tracing::{debug, error};
 use zerocopy::FromBytes;
 use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
@@ -33,6 +32,7 @@ use crate::{
 pub mod account;
 pub mod asset;
 pub mod institution;
+pub mod transaction;
 pub mod user;
 
 #[derive(Debug, Clone, Copy, JsonSchema, OperationIo, Deserialize)]
@@ -105,17 +105,7 @@ async fn get_cursor_key(
 ) -> Result<CursorKey, Response> {
     debug!("Refreshing cursor key");
     let cursor_key_repository = CursorKeyRepository {};
-    let mut connection = state
-        .connection_pool
-        .read()
-        .await
-        .acquire()
-        .await
-        .map_err(|e| {
-            error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-        })?;
-    let transaction = connection.begin().await.map_err(|e| {
+    let transaction = state.connection_pool.begin().await.map_err(|e| {
         error!("{e}");
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
     })?;
@@ -236,6 +226,20 @@ where
     serializer.serialize_str(&datetime.to_rfc3339())
 }
 
+pub fn serialize_datetime_option<S>(
+    datetime: &Option<DateTime<Utc>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(dt) = datetime {
+        serializer.serialize_str(&dt.to_rfc3339())
+    } else {
+        serializer.serialize_none()
+    }
+}
+
 pub fn deserialize_datetime<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
 where
     D: Deserializer<'de>,
@@ -245,6 +249,26 @@ where
         .map_err(serde::de::Error::custom)?
         .to_utc();
     Ok(datetime)
+}
+
+pub fn deserialize_datetime_option<'de, D>(
+    deserializer: D,
+) -> Result<Option<DateTime<Utc>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    if let Some(encoded) = opt {
+        let decoded = urlencoding::decode(&encoded)
+            .map_err(serde::de::Error::custom)?
+            .into_owned();
+        let datetime = DateTime::parse_from_rfc3339(&decoded)
+            .map_err(serde::de::Error::custom)?
+            .to_utc();
+        Ok(Some(datetime))
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]

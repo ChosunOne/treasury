@@ -84,8 +84,7 @@ impl FromRequestParts<Arc<AppState>> for InstitutionApiState {
         })?;
 
         let institution_service =
-            InstitutionServiceFactory::build(Arc::clone(&state.connection_pool), permission_set)
-                .await;
+            InstitutionServiceFactory::build(Arc::clone(&state.connection_pool), permission_set);
 
         Ok(Self {
             authenticated_token,
