@@ -17,46 +17,20 @@ use crate::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, UpdateRepository,
         user_repository::UserRepository,
     },
-    service::ServiceError,
+    service::{
+        ServiceCreate, ServiceCrud, ServiceDelete, ServiceError, ServiceGet, ServiceGetList,
+        ServiceUpdate,
+    },
 };
 
 #[async_trait]
-pub trait UserServiceGet {
-    async fn get(&self, id: UserId) -> Result<User, ServiceError>;
-    async fn get_list(
-        &self,
-        offset: i64,
-        limit: Option<i64>,
-        filter: UserFilter,
-    ) -> Result<Vec<User>, ServiceError>;
-}
-
-#[async_trait]
-pub trait UserServiceCreate {
-    async fn create(&self, create_model: UserCreate) -> Result<User, ServiceError>;
-}
-
-#[async_trait]
-pub trait UserServiceUpdate {
-    async fn update(&self, id: UserId, update_model: UserUpdate) -> Result<User, ServiceError>;
-}
-
-#[async_trait]
-pub trait UserServiceDelete {
-    async fn delete(&self, id: UserId) -> Result<User, ServiceError>;
-}
-
-#[async_trait]
 pub trait UserServiceMethods:
-    UserServiceGet + UserServiceCreate + UserServiceUpdate + UserServiceDelete
+    ServiceCrud<UserId, User, UserFilter, UserCreate, UserUpdate>
 {
 }
 
 #[async_trait]
-impl<T: UserServiceGet + UserServiceCreate + UserServiceUpdate + UserServiceDelete>
-    UserServiceMethods for T
-{
-}
+impl<T: ServiceCrud<UserId, User, UserFilter, UserCreate, UserUpdate>> UserServiceMethods for T {}
 
 #[derive(Debug, Clone)]
 pub struct UserService<Policy> {
@@ -89,13 +63,19 @@ impl<Policy> UserService<Policy> {
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceGet
+    ServiceGet<UserId, User>
     for UserService<Policy<UserResource, ActionSet<NoPermission, Create, Update, Delete>, Role>>
 {
     async fn get(&self, _id: UserId) -> Result<User, ServiceError> {
         Err(ServiceError::Unauthorized)
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<UserFilter, User>
+    for UserService<Policy<UserResource, ActionSet<NoPermission, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         _offset: i64,
@@ -108,7 +88,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceGet
+    ServiceGet<UserId, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: UserId) -> Result<User, ServiceError> {
@@ -120,7 +100,13 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         // to date.
         return Ok(user.clone());
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<UserFilter, User>
+    for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         offset: i64,
@@ -139,7 +125,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceGet
+    ServiceGet<UserId, User>
     for UserService<Policy<UserResource, ActionSet<ReadAll, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: UserId) -> Result<User, ServiceError> {
@@ -147,7 +133,13 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         let user = self.user_repository.get(pool.begin().await?, id).await?;
         Ok(user)
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<UserFilter, User>
+    for UserService<Policy<UserResource, ActionSet<ReadAll, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         offset: i64,
@@ -165,7 +157,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceCreate
+    ServiceCreate<UserCreate, User>
     for UserService<Policy<UserResource, ActionSet<Read, NoPermission, Update, Delete>, Role>>
 {
     async fn create(&self, _create_model: UserCreate) -> Result<User, ServiceError> {
@@ -175,7 +167,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceCreate
+    ServiceCreate<UserCreate, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: UserCreate) -> Result<User, ServiceError> {
@@ -194,7 +186,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceUpdate
+    ServiceUpdate<UserId, UserUpdate, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, NoPermission, Delete>, Role>>
 {
     async fn update(&self, _id: UserId, _update_model: UserUpdate) -> Result<User, ServiceError> {
@@ -204,7 +196,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceUpdate
+    ServiceUpdate<UserId, UserUpdate, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn update(&self, id: UserId, update_model: UserUpdate) -> Result<User, ServiceError> {
@@ -232,7 +224,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    UserServiceUpdate
+    ServiceUpdate<UserId, UserUpdate, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, UpdateAll, Delete>, Role>>
 {
     async fn update(&self, id: UserId, update_model: UserUpdate) -> Result<User, ServiceError> {
@@ -259,7 +251,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    UserServiceDelete
+    ServiceDelete<UserId, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, NoPermission>, Role>>
 {
     async fn delete(&self, _id: UserId) -> Result<User, ServiceError> {
@@ -269,7 +261,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    UserServiceDelete
+    ServiceDelete<UserId, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn delete(&self, id: UserId) -> Result<User, ServiceError> {
@@ -285,7 +277,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    UserServiceDelete
+    ServiceDelete<UserId, User>
     for UserService<Policy<UserResource, ActionSet<Read, Create, Update, DeleteAll>, Role>>
 {
     async fn delete(&self, id: UserId) -> Result<User, ServiceError> {

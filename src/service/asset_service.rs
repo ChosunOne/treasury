@@ -15,44 +15,21 @@ use crate::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, UpdateRepository,
         asset_repository::AssetRepository,
     },
-    service::ServiceError,
+    service::{
+        ServiceCreate, ServiceCrud, ServiceDelete, ServiceError, ServiceGet, ServiceGetList,
+        ServiceUpdate,
+    },
 };
 
 #[async_trait]
-pub trait AssetServiceGet {
-    async fn get(&self, id: AssetId) -> Result<Asset, ServiceError>;
-    async fn get_list(
-        &self,
-        offset: i64,
-        limit: Option<i64>,
-        filter: AssetFilter,
-    ) -> Result<Vec<Asset>, ServiceError>;
-}
-
-#[async_trait]
-pub trait AssetServiceCreate {
-    async fn create(&self, create_model: AssetCreate) -> Result<Asset, ServiceError>;
-}
-
-#[async_trait]
-pub trait AssetServiceUpdate {
-    async fn update(&self, id: AssetId, update_model: AssetUpdate) -> Result<Asset, ServiceError>;
-}
-
-#[async_trait]
-pub trait AssetServiceDelete {
-    async fn delete(&self, id: AssetId) -> Result<Asset, ServiceError>;
-}
-
-#[async_trait]
 pub trait AssetServiceMethods:
-    AssetServiceGet + AssetServiceCreate + AssetServiceUpdate + AssetServiceDelete
+    ServiceCrud<AssetId, Asset, AssetFilter, AssetCreate, AssetUpdate>
 {
 }
 
 #[async_trait]
-impl<T: AssetServiceGet + AssetServiceCreate + AssetServiceUpdate + AssetServiceDelete>
-    AssetServiceMethods for T
+impl<T: ServiceCrud<AssetId, Asset, AssetFilter, AssetCreate, AssetUpdate>> AssetServiceMethods
+    for T
 {
 }
 
@@ -74,13 +51,18 @@ impl<Policy> AssetService<Policy> {
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AssetServiceGet
+    ServiceGet<AssetId, Asset>
     for AssetService<Policy<AssetResource, ActionSet<NoPermission, Create, Update, Delete>, Role>>
 {
     async fn get(&self, _id: AssetId) -> Result<Asset, ServiceError> {
         Err(ServiceError::Unauthorized)
     }
-
+}
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<AssetFilter, Asset>
+    for AssetService<Policy<AssetResource, ActionSet<NoPermission, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         _offset: i64,
@@ -93,7 +75,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AssetServiceGet
+    ServiceGet<AssetId, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: AssetId) -> Result<Asset, ServiceError> {
@@ -101,7 +83,13 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         let asset = self.asset_repository.get(pool.begin().await?, id).await?;
         Ok(asset)
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<AssetFilter, Asset>
+    for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         offset: i64,
@@ -119,7 +107,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AssetServiceCreate
+    ServiceCreate<AssetCreate, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, NoPermission, Update, Delete>, Role>>
 {
     async fn create(&self, _create_model: AssetCreate) -> Result<Asset, ServiceError> {
@@ -129,7 +117,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AssetServiceCreate
+    ServiceCreate<AssetCreate, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: AssetCreate) -> Result<Asset, ServiceError> {
@@ -144,7 +132,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AssetServiceUpdate
+    ServiceUpdate<AssetId, AssetUpdate, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, NoPermission, Delete>, Role>>
 {
     async fn update(
@@ -158,7 +146,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AssetServiceUpdate
+    ServiceUpdate<AssetId, AssetUpdate, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn update(&self, id: AssetId, update_model: AssetUpdate) -> Result<Asset, ServiceError> {
@@ -185,7 +173,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    AssetServiceDelete
+    ServiceDelete<AssetId, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, NoPermission>, Role>>
 {
     async fn delete(&self, _id: AssetId) -> Result<Asset, ServiceError> {
@@ -195,7 +183,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    AssetServiceDelete
+    ServiceDelete<AssetId, Asset>
     for AssetService<Policy<AssetResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn delete(&self, id: AssetId) -> Result<Asset, ServiceError> {

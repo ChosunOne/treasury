@@ -17,50 +17,25 @@ use crate::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, UpdateRepository,
         institution_repository::InstitutionRepository,
     },
-    service::ServiceError,
+    service::{
+        ServiceCreate, ServiceCrud, ServiceDelete, ServiceError, ServiceGet, ServiceGetList,
+        ServiceUpdate,
+    },
 };
 
-#[async_trait]
-pub trait InstitutionServiceGet {
-    async fn get(&self, id: InstitutionId) -> Result<Institution, ServiceError>;
-    async fn get_list(
-        &self,
-        offset: i64,
-        limit: Option<i64>,
-        filter: InstitutionFilter,
-    ) -> Result<Vec<Institution>, ServiceError>;
-}
-#[async_trait]
-pub trait InstitutionServiceCreate {
-    async fn create(&self, create_model: InstitutionCreate) -> Result<Institution, ServiceError>;
-}
-
-#[async_trait]
-pub trait InstitutionServiceUpdate {
-    async fn update(
-        &self,
-        id: InstitutionId,
-        update_model: InstitutionUpdate,
-    ) -> Result<Institution, ServiceError>;
-}
-#[async_trait]
-pub trait InstitutionServiceDelete {
-    async fn delete(&self, id: InstitutionId) -> Result<Institution, ServiceError>;
-}
-
 pub trait InstitutionServiceMethods:
-    InstitutionServiceGet
-    + InstitutionServiceCreate
-    + InstitutionServiceUpdate
-    + InstitutionServiceDelete
+    ServiceCrud<InstitutionId, Institution, InstitutionFilter, InstitutionCreate, InstitutionUpdate>
 {
 }
 
 impl<
-    T: InstitutionServiceGet
-        + InstitutionServiceCreate
-        + InstitutionServiceUpdate
-        + InstitutionServiceDelete,
+    T: ServiceCrud<
+            InstitutionId,
+            Institution,
+            InstitutionFilter,
+            InstitutionCreate,
+            InstitutionUpdate,
+        >,
 > InstitutionServiceMethods for T
 {
 }
@@ -86,7 +61,7 @@ impl<Policy> InstitutionService<Policy> {
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    InstitutionServiceGet
+    ServiceGet<InstitutionId, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<NoPermission, Create, Update, Delete>, Role>,
     >
@@ -94,7 +69,15 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     async fn get(&self, _id: InstitutionId) -> Result<Institution, ServiceError> {
         Err(ServiceError::Unauthorized)
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<InstitutionFilter, Institution>
+    for InstitutionService<
+        Policy<InstitutionResource, ActionSet<NoPermission, Create, Update, Delete>, Role>,
+    >
+{
     async fn get_list(
         &self,
         _offset: i64,
@@ -107,7 +90,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    InstitutionServiceGet
+    ServiceGet<InstitutionId, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, Create, Update, Delete>, Role>,
     >
@@ -120,7 +103,15 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
             .await?;
         Ok(institution)
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<InstitutionFilter, Institution>
+    for InstitutionService<
+        Policy<InstitutionResource, ActionSet<Read, Create, Update, Delete>, Role>,
+    >
+{
     async fn get_list(
         &self,
         offset: i64,
@@ -138,7 +129,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    InstitutionServiceCreate
+    ServiceCreate<InstitutionCreate, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, NoPermission, Update, Delete>, Role>,
     >
@@ -150,7 +141,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    InstitutionServiceCreate
+    ServiceCreate<InstitutionCreate, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, Create, Update, Delete>, Role>,
     >
@@ -167,7 +158,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    InstitutionServiceUpdate
+    ServiceUpdate<InstitutionId, InstitutionUpdate, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, Create, NoPermission, Delete>, Role>,
     >
@@ -183,7 +174,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    InstitutionServiceUpdate
+    ServiceUpdate<InstitutionId, InstitutionUpdate, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, Create, Update, Delete>, Role>,
     >
@@ -213,7 +204,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    InstitutionServiceDelete
+    ServiceDelete<InstitutionId, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, Create, Update, NoPermission>, Role>,
     >
@@ -225,7 +216,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    InstitutionServiceDelete
+    ServiceDelete<InstitutionId, Institution>
     for InstitutionService<
         Policy<InstitutionResource, ActionSet<Read, Create, Update, Delete>, Role>,
     >

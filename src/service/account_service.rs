@@ -19,47 +19,20 @@ use crate::{
         CreateRepository, DeleteRepository, GetListRepository, GetRepository, UpdateRepository,
         account_repository::AccountRepository,
     },
-    service::ServiceError,
+    service::{
+        ServiceCreate, ServiceCrud, ServiceDelete, ServiceError, ServiceGet, ServiceGetList,
+        ServiceUpdate,
+    },
 };
 
 #[async_trait]
-pub trait AccountServiceGet {
-    async fn get(&self, id: AccountId) -> Result<Account, ServiceError>;
-    async fn get_list(
-        &self,
-        offset: i64,
-        limit: Option<i64>,
-        filter: AccountFilter,
-    ) -> Result<Vec<Account>, ServiceError>;
-}
-
-#[async_trait]
-pub trait AccountServiceCreate {
-    async fn create(&self, create_model: AccountCreate) -> Result<Account, ServiceError>;
-}
-
-#[async_trait]
-pub trait AccountServiceUpdate {
-    async fn update(
-        &self,
-        id: AccountId,
-        update_model: AccountUpdate,
-    ) -> Result<Account, ServiceError>;
-}
-
-#[async_trait]
-pub trait AccountServiceDelete {
-    async fn delete(&self, id: AccountId) -> Result<Account, ServiceError>;
-}
-
-#[async_trait]
 pub trait AccountServiceMethods:
-    AccountServiceGet + AccountServiceCreate + AccountServiceUpdate + AccountServiceDelete
+    ServiceCrud<AccountId, Account, AccountFilter, AccountCreate, AccountUpdate>
 {
 }
 
 #[async_trait]
-impl<T: AccountServiceGet + AccountServiceCreate + AccountServiceUpdate + AccountServiceDelete>
+impl<T: ServiceCrud<AccountId, Account, AccountFilter, AccountCreate, AccountUpdate>>
     AccountServiceMethods for T
 {
 }
@@ -88,7 +61,7 @@ impl<Policy> AccountService<Policy> {
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceGet
+    ServiceGet<AccountId, Account>
     for AccountService<
         Policy<AccountResource, ActionSet<NoPermission, Create, Update, Delete>, Role>,
     >
@@ -96,6 +69,15 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
     async fn get(&self, _id: AccountId) -> Result<Account, ServiceError> {
         Err(ServiceError::Unauthorized)
     }
+}
+
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<AccountFilter, Account>
+    for AccountService<
+        Policy<AccountResource, ActionSet<NoPermission, Create, Update, Delete>, Role>,
+    >
+{
     async fn get_list(
         &self,
         _offset: i64,
@@ -108,7 +90,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceGet
+    ServiceGet<AccountId, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: AccountId) -> Result<Account, ServiceError> {
@@ -130,7 +112,12 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
             .ok_or(ServiceError::NotFound)?;
         Ok(account)
     }
-
+}
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<AccountFilter, Account>
+    for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         offset: i64,
@@ -149,7 +136,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceGet
+    ServiceGet<AccountId, Account>
     for AccountService<Policy<AccountResource, ActionSet<ReadAll, Create, Update, Delete>, Role>>
 {
     async fn get(&self, id: AccountId) -> Result<Account, ServiceError> {
@@ -157,7 +144,13 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
         let account = self.account_repository.get(pool.begin().await?, id).await?;
         Ok(account)
     }
+}
 
+#[async_trait]
+impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
+    ServiceGetList<AccountFilter, Account>
+    for AccountService<Policy<AccountResource, ActionSet<ReadAll, Create, Update, Delete>, Role>>
+{
     async fn get_list(
         &self,
         offset: i64,
@@ -175,7 +168,7 @@ impl<Create: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send +
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceCreate
+    ServiceCreate<AccountCreate, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, NoPermission, Update, Delete>, Role>>
 {
     async fn create(&self, _create_model: AccountCreate) -> Result<Account, ServiceError> {
@@ -185,7 +178,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceCreate
+    ServiceCreate<AccountCreate, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: AccountCreate) -> Result<Account, ServiceError> {
@@ -203,7 +196,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceCreate
+    ServiceCreate<AccountCreate, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, CreateAll, Update, Delete>, Role>>
 {
     async fn create(&self, create_model: AccountCreate) -> Result<Account, ServiceError> {
@@ -218,7 +211,7 @@ impl<Read: Send + Sync, Update: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceUpdate
+    ServiceUpdate<AccountId, AccountUpdate, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, NoPermission, Delete>, Role>>
 {
     async fn update(
@@ -232,7 +225,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceUpdate
+    ServiceUpdate<AccountId, AccountUpdate, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn update(
@@ -271,7 +264,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + Sync>
-    AccountServiceUpdate
+    ServiceUpdate<AccountId, AccountUpdate, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, UpdateAll, Delete>, Role>>
 {
     async fn update(
@@ -297,7 +290,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Delete: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    AccountServiceDelete
+    ServiceDelete<AccountId, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, NoPermission>, Role>>
 {
     async fn delete(&self, _id: AccountId) -> Result<Account, ServiceError> {
@@ -307,7 +300,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    AccountServiceDelete
+    ServiceDelete<AccountId, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, Delete>, Role>>
 {
     async fn delete(&self, id: AccountId) -> Result<Account, ServiceError> {
@@ -339,7 +332,7 @@ impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + S
 
 #[async_trait]
 impl<Read: Send + Sync, Create: Send + Sync, Update: Send + Sync, Role: Send + Sync>
-    AccountServiceDelete
+    ServiceDelete<AccountId, Account>
     for AccountService<Policy<AccountResource, ActionSet<Read, Create, Update, DeleteAll>, Role>>
 {
     async fn delete(&self, id: AccountId) -> Result<Account, ServiceError> {
