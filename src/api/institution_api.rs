@@ -31,9 +31,9 @@ use crate::{
     },
     model::{cursor_key::CursorKey, institution::InstitutionId},
     schema::{
-        Pagination,
+        GetList, Pagination,
         institution::{
-            CreateRequest, DeleteResponse, GetList, GetListRequest, InstitutionCreateResponse,
+            CreateRequest, DeleteResponse, GetListRequest, InstitutionCreateResponse,
             InstitutionGetListResponse, InstitutionGetResponse, InstitutionResponse,
             InstitutionUpdateResponse, UpdateRequest,
         },

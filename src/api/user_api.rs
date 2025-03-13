@@ -15,11 +15,11 @@ use crate::{
         user::{UserCreate, UserId},
     },
     schema::{
-        Pagination,
+        GetList, Pagination,
         user::{
-            CreateRequest as UserCreateRequest, GetList, GetListRequest,
-            UpdateRequest as UserUpdateRequest, UserCreateResponse, UserDeleteResponse,
-            UserGetListResponse, UserGetResponse, UserResponse, UserUpdateResponse,
+            CreateRequest as UserCreateRequest, GetListRequest, UpdateRequest as UserUpdateRequest,
+            UserCreateResponse, UserDeleteResponse, UserGetListResponse, UserGetResponse,
+            UserResponse, UserUpdateResponse,
         },
     },
     service::{user_service::UserServiceMethods, user_service_factory::UserServiceFactory},

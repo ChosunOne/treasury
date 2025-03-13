@@ -18,17 +18,11 @@ use crate::{
         institution::InstitutionId,
         user::UserId,
     },
-    schema::{Pagination, deserialize_datetime, serialize_datetime},
+    schema::{
+        CreateResponse, GetList, GetResponse, Pagination, UpdateResponse, deserialize_datetime,
+        serialize_datetime,
+    },
 };
-
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct GetResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct GetList;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct CreateResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct UpdateResponse;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
 pub struct AccountResponse<T> {

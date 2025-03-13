@@ -246,3 +246,12 @@ where
         .to_utc();
     Ok(datetime)
 }
+
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct GetResponse;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct GetList;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct CreateResponse;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct UpdateResponse;

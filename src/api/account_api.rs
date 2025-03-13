@@ -39,10 +39,10 @@ use crate::{
         user::UserId,
     },
     schema::{
-        Pagination,
+        GetList, Pagination,
         account::{
             AccountCreateResponse, AccountGetResponse, AccountResponse, AccountUpdateResponse,
-            CreateRequest, DeleteResponse, GetList, GetListRequest, GetListResponse, UpdateRequest,
+            CreateRequest, DeleteResponse, GetListRequest, GetListResponse, UpdateRequest,
         },
     },
     service::{

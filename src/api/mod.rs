@@ -220,11 +220,12 @@ mod test {
         AUTH_MODEL_PATH, AUTH_POLICY_PATH,
         model::user::UserId,
         schema::{
+            GetList,
             account::{
                 AccountCreateResponse, CreateRequest as AccountCreateRequest,
                 GetListResponse as AccountGetListResponse,
             },
-            institution::{GetList, InstitutionGetListResponse, InstitutionResponse},
+            institution::{InstitutionGetListResponse, InstitutionResponse},
             user::{
                 CreateRequest as UserCreateRequest, UpdateRequest as UserUpdateRequest,
                 UserCreateResponse, UserDeleteResponse, UserGetResponse, UserUpdateResponse,

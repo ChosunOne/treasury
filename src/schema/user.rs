@@ -15,62 +15,11 @@ use crate::{
         cursor_key::{CursorKey, EncryptionError},
         user::{User, UserFilter, UserId, UserUpdate},
     },
-    schema::{Pagination, deserialize_datetime, serialize_datetime},
+    schema::{
+        CreateResponse, GetList, GetResponse, Pagination, UpdateResponse, deserialize_datetime,
+        deserialize_optional_url_encoded, serialize_datetime,
+    },
 };
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct CreateRequest {
-    /// The user name
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListRequest {
-    /// The name to filter on
-    #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    /// The email to filter on
-    #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
-}
-
-impl From<GetListRequest> for UserFilter {
-    fn from(value: GetListRequest) -> Self {
-        Self {
-            name: value.name,
-            email: value.email,
-            ..Default::default()
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct UpdateRequest {
-    /// The new user name
-    #[schemars(with = "String")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-}
-
-impl From<UpdateRequest> for UserUpdate {
-    fn from(value: UpdateRequest) -> Self {
-        Self {
-            name: value.name,
-            email: None,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default, JsonSchema)]
-pub struct GetResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema)]
-pub struct GetList;
-#[derive(Copy, Clone, Debug, Default, JsonSchema)]
-pub struct CreateResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema)]
-pub struct UpdateResponse;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct UserResponse<T> {
@@ -125,6 +74,59 @@ impl IntoResponse for UserResponse<GetResponse> {
 impl IntoResponse for UserResponse<UpdateResponse> {
     fn into_response(self) -> Response {
         (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+pub struct CreateRequest {
+    /// The user name
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
+pub struct GetListRequest {
+    /// The name to filter on
+    #[schemars(with = "String")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_url_encoded"
+    )]
+    pub name: Option<String>,
+    /// The email to filter on
+    #[schemars(with = "String")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_url_encoded"
+    )]
+    pub email: Option<String>,
+}
+
+impl From<GetListRequest> for UserFilter {
+    fn from(value: GetListRequest) -> Self {
+        Self {
+            name: value.name,
+            email: value.email,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+pub struct UpdateRequest {
+    /// The new user name
+    #[schemars(with = "String")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl From<UpdateRequest> for UserUpdate {
+    fn from(value: UpdateRequest) -> Self {
+        Self {
+            name: value.name,
+            email: None,
+        }
     }
 }
 

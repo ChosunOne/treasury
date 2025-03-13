@@ -16,18 +16,10 @@ use crate::{
         cursor_key::{CursorKey, EncryptionError},
     },
     schema::{
-        Pagination, deserialize_datetime, deserialize_optional_url_encoded, serialize_datetime,
+        CreateResponse, GetList, GetResponse, Pagination, UpdateResponse, deserialize_datetime,
+        deserialize_optional_url_encoded, serialize_datetime,
     },
 };
-
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct GetResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct GetList;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct CreateResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
-pub struct UpdateResponse;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
 pub struct AssetResponse<T> {

@@ -31,11 +31,10 @@ use crate::{
     },
     model::{asset::AssetId, cursor_key::CursorKey},
     schema::{
-        Pagination,
+        GetList, Pagination,
         asset::{
             AssetCreateResponse, AssetGetListResponse, AssetGetResponse, AssetResponse,
-            AssetUpdateResponse, CreateRequest, DeleteResponse, GetList, GetListRequest,
-            UpdateRequest,
+            AssetUpdateResponse, CreateRequest, DeleteResponse, GetListRequest, UpdateRequest,
         },
     },
     service::{asset_service::AssetServiceMethods, asset_service_factory::AssetServiceFactory},
