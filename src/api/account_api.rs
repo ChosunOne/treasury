@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use aide::{
     OperationInput,
@@ -41,8 +41,8 @@ use crate::{
     schema::{
         Pagination,
         account::{
-            CreateRequest, CreateResponse, DeleteResponse, GetListAccount, GetListRequest,
-            GetListResponse, GetResponse, UpdateRequest, UpdateResponse,
+            AccountCreateResponse, AccountGetResponse, AccountResponse, AccountUpdateResponse,
+            CreateRequest, DeleteResponse, GetList, GetListRequest, GetListResponse, UpdateRequest,
         },
     },
     service::{
@@ -135,7 +135,7 @@ impl AccountApi {
             .response_with::<200, Json<GetListResponse>, _>(|res| {
                 res.description("A list of accounts.")
                     .example(GetListResponse {
-                        accounts: vec![GetListAccount::default(); 3],
+                        accounts: vec![AccountResponse::<GetList>::default(); 3],
                         next_cursor: "<cursor to get the next set of accounts>".to_owned().into(),
                         prev_cursor: "<cursor to get the previous set of accounts"
                             .to_owned()
@@ -147,7 +147,7 @@ impl AccountApi {
     pub async fn get(
         Path(PathAccountId { id }): Path<PathAccountId>,
         state: AccountApiState,
-    ) -> Result<GetResponse, ApiError> {
+    ) -> Result<AccountGetResponse, ApiError> {
         let account = state.account_service.get(id).await?;
         let response = account.into();
         Ok(response)
@@ -158,14 +158,15 @@ impl AccountApi {
             .tag("Accounts")
             .description("Get an account by id.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<GetResponse>, _>(|res| {
-                res.description("An account").example(GetResponse {
+            .response_with::<200, Json<AccountGetResponse>, _>(|res| {
+                res.description("An account").example(AccountGetResponse {
                     id: AccountId::default(),
-                    created_at: Utc::now().to_rfc3339(),
-                    updated_at: Utc::now().to_rfc3339(),
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
                     name: "Account Name".to_owned(),
                     user_id: UserId::default(),
                     institution_id: InstitutionId::default(),
+                    _phantom: PhantomData,
                 })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
@@ -180,7 +181,7 @@ impl AccountApi {
         state: AccountApiState,
         registered_user: RegisteredUser,
         Json(create_request): Json<CreateRequest>,
-    ) -> Result<CreateResponse, ApiError> {
+    ) -> Result<AccountCreateResponse, ApiError> {
         let account_create = AccountCreate {
             name: create_request.name,
             institution_id: create_request.institution_id,
@@ -195,15 +196,16 @@ impl AccountApi {
             .tag("Accounts")
             .description("Create a new account.")
             .security_requirement("OpenIdConnect")
-            .response_with::<201, Json<CreateResponse>, _>(|res| {
+            .response_with::<201, Json<AccountCreateResponse>, _>(|res| {
                 res.description("The newly created account.")
-                    .example(CreateResponse {
+                    .example(AccountCreateResponse {
                         id: AccountId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "Account Name".to_owned(),
                         user_id: UserId::default(),
                         institution_id: InstitutionId::default(),
+                        _phantom: PhantomData,
                     })
             })
     }
@@ -212,7 +214,7 @@ impl AccountApi {
         state: AccountApiState,
         Path(PathAccountId { id }): Path<PathAccountId>,
         Json(update_request): Json<UpdateRequest>,
-    ) -> Result<UpdateResponse, ApiError> {
+    ) -> Result<AccountUpdateResponse, ApiError> {
         let account = state
             .account_service
             .update(id, update_request.into())
@@ -225,15 +227,16 @@ impl AccountApi {
             .tag("Accounts")
             .description("Update an account.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<UpdateResponse>, _>(|res| {
+            .response_with::<200, Json<AccountUpdateResponse>, _>(|res| {
                 res.description("The newly updated account.")
-                    .example(UpdateResponse {
+                    .example(AccountUpdateResponse {
                         id: AccountId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "Account Name".into(),
                         user_id: UserId::default(),
                         institution_id: InstitutionId::default(),
+                        _phantom: PhantomData,
                     })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {

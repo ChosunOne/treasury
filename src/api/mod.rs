@@ -221,7 +221,7 @@ mod test {
         model::user::UserId,
         schema::{
             account::{
-                CreateRequest as AccountCreateRequest, CreateResponse as AccountCreateResponse,
+                AccountCreateResponse, CreateRequest as AccountCreateRequest,
                 GetListResponse as AccountGetListResponse,
             },
             institution::{GetListInstitution, GetListResponse as InstitutionGetListResponse},
