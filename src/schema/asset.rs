@@ -1,8 +1,11 @@
+use std::marker::PhantomData;
+
 use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -12,8 +15,74 @@ use crate::{
         asset::{Asset, AssetCreate, AssetFilter, AssetId, AssetUpdate},
         cursor_key::{CursorKey, EncryptionError},
     },
-    schema::{Pagination, deserialize_optional_url_encoded},
+    schema::{
+        Pagination, deserialize_datetime, deserialize_optional_url_encoded, serialize_datetime,
+    },
 };
+
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct GetResponse;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct GetList;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct CreateResponse;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct UpdateResponse;
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
+pub struct AssetResponse<T> {
+    /// The asset id
+    pub id: AssetId,
+    /// When the asset was created
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
+    pub created_at: DateTime<Utc>,
+    /// When the asset was updated
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
+    pub updated_at: DateTime<Utc>,
+    /// The asset name
+    pub name: String,
+    /// The asset symbol
+    pub symbol: String,
+    #[serde(skip)]
+    pub _phantom: PhantomData<T>,
+}
+
+impl<T> From<Asset> for AssetResponse<T> {
+    fn from(value: Asset) -> Self {
+        Self {
+            id: value.id,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            name: value.name,
+            symbol: value.symbol,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl IntoResponse for AssetResponse<CreateResponse> {
+    fn into_response(self) -> Response {
+        (StatusCode::CREATED, Json(self)).into_response()
+    }
+}
+
+impl IntoResponse for AssetResponse<GetResponse> {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+impl IntoResponse for AssetResponse<UpdateResponse> {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
@@ -27,60 +96,6 @@ impl From<CreateRequest> for AssetCreate {
             name: value.name,
             symbol: value.symbol,
         }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct CreateResponse {
-    pub id: AssetId,
-    pub created_at: String,
-    pub updated_at: String,
-    pub name: String,
-    pub symbol: String,
-}
-
-impl From<Asset> for CreateResponse {
-    fn from(value: Asset) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-            symbol: value.symbol,
-        }
-    }
-}
-
-impl IntoResponse for CreateResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::CREATED, Json(self)).into_response()
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetResponse {
-    pub id: AssetId,
-    pub created_at: String,
-    pub updated_at: String,
-    pub name: String,
-    pub symbol: String,
-}
-
-impl From<Asset> for GetResponse {
-    fn from(value: Asset) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-            symbol: value.symbol,
-        }
-    }
-}
-
-impl IntoResponse for GetResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::OK, Json(self)).into_response()
     }
 }
 
@@ -112,30 +127,9 @@ impl From<GetListRequest> for AssetFilter {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListAsset {
-    pub id: AssetId,
-    pub created_at: String,
-    pub updated_at: String,
-    pub name: String,
-    pub symbol: String,
-}
-
-impl From<Asset> for GetListAsset {
-    fn from(value: Asset) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-            symbol: value.symbol,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
-    pub assets: Vec<GetListAsset>,
+    pub assets: Vec<AssetResponse<GetList>>,
     pub next_cursor: Option<String>,
     pub prev_cursor: Option<String>,
 }
@@ -184,33 +178,6 @@ impl From<UpdateRequest> for AssetUpdate {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct UpdateResponse {
-    pub id: AssetId,
-    pub created_at: String,
-    pub updated_at: String,
-    pub name: String,
-    pub symbol: String,
-}
-
-impl IntoResponse for UpdateResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::OK, Json(self)).into_response()
-    }
-}
-
-impl From<Asset> for UpdateResponse {
-    fn from(value: Asset) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-            symbol: value.symbol,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct DeleteResponse;
 
 impl IntoResponse for DeleteResponse {
@@ -218,3 +185,8 @@ impl IntoResponse for DeleteResponse {
         StatusCode::NO_CONTENT.into_response()
     }
 }
+
+pub type AssetGetResponse = AssetResponse<GetResponse>;
+pub type AssetGetListResponse = GetListResponse;
+pub type AssetCreateResponse = AssetResponse<CreateResponse>;
+pub type AssetUpdateResponse = AssetResponse<UpdateResponse>;

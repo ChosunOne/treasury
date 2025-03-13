@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use aide::{
     OperationInput,
@@ -33,8 +33,9 @@ use crate::{
     schema::{
         Pagination,
         asset::{
-            CreateRequest, CreateResponse, DeleteResponse, GetListAsset, GetListRequest,
-            GetListResponse, GetResponse, UpdateRequest, UpdateResponse,
+            AssetCreateResponse, AssetGetListResponse, AssetGetResponse, AssetResponse,
+            AssetUpdateResponse, CreateRequest, DeleteResponse, GetList, GetListRequest,
+            UpdateRequest,
         },
     },
     service::{asset_service::AssetServiceMethods, asset_service_factory::AssetServiceFactory},
@@ -101,13 +102,13 @@ impl AssetApi {
         pagination: Pagination,
         cursor_key: CursorKey,
         Query(filter): Query<GetListRequest>,
-    ) -> Result<GetListResponse, ApiError> {
+    ) -> Result<AssetGetListResponse, ApiError> {
         let offset = pagination.offset();
         let assets = state
             .asset_service
             .get_list(offset, pagination.max_items, filter.into())
             .await?;
-        let response = GetListResponse::new(assets, &pagination, &cursor_key)?;
+        let response = AssetGetListResponse::new(assets, &pagination, &cursor_key)?;
         Ok(response)
     }
 
@@ -116,10 +117,10 @@ impl AssetApi {
             .tag("Assets")
             .description("Get a list of assets.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<GetListResponse>, _>(|res| {
+            .response_with::<200, Json<AssetGetListResponse>, _>(|res| {
                 res.description("A list of assets")
-                    .example(GetListResponse {
-                        assets: vec![GetListAsset::default(); 3],
+                    .example(AssetGetListResponse {
+                        assets: vec![AssetResponse::<GetList>::default(); 3],
                         next_cursor: "<cursor to get the next set of assets>".to_owned().into(),
                         prev_cursor: "<cursor to get the previous set of assets>"
                             .to_owned()
@@ -131,7 +132,7 @@ impl AssetApi {
     pub async fn get(
         Path(PathAssetId { id }): Path<PathAssetId>,
         state: AssetApiState,
-    ) -> Result<GetResponse, ApiError> {
+    ) -> Result<AssetGetResponse, ApiError> {
         let asset = state.asset_service.get(id).await?;
         Ok(asset.into())
     }
@@ -141,13 +142,14 @@ impl AssetApi {
             .tag("Assets")
             .description("Get an asset by id.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<GetResponse>, _>(|res| {
-                res.description("An asset").example(GetResponse {
+            .response_with::<200, Json<AssetGetResponse>, _>(|res| {
+                res.description("An asset").example(AssetGetResponse {
                     id: AssetId::default(),
-                    created_at: Utc::now().to_rfc3339(),
-                    updated_at: Utc::now().to_rfc3339(),
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
                     name: "Asset Name".into(),
                     symbol: "SYM".into(),
+                    _phantom: PhantomData,
                 })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
@@ -161,7 +163,7 @@ impl AssetApi {
     pub async fn create(
         state: AssetApiState,
         Json(create_request): Json<CreateRequest>,
-    ) -> Result<CreateResponse, ApiError> {
+    ) -> Result<AssetCreateResponse, ApiError> {
         let asset = state.asset_service.create(create_request.into()).await?;
         Ok(asset.into())
     }
@@ -171,14 +173,15 @@ impl AssetApi {
             .tag("Assets")
             .description("Create a new asset")
             .security_requirement("OpenIdConnect")
-            .response_with::<201, Json<CreateResponse>, _>(|res| {
+            .response_with::<201, Json<AssetCreateResponse>, _>(|res| {
                 res.description("The newly created asset")
-                    .example(CreateResponse {
+                    .example(AssetCreateResponse {
                         id: AssetId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "Asset Name".into(),
                         symbol: "SYM".into(),
+                        _phantom: PhantomData,
                     })
             })
     }
@@ -187,7 +190,7 @@ impl AssetApi {
         state: AssetApiState,
         Path(PathAssetId { id }): Path<PathAssetId>,
         Json(update_request): Json<UpdateRequest>,
-    ) -> Result<UpdateResponse, ApiError> {
+    ) -> Result<AssetUpdateResponse, ApiError> {
         let asset = state
             .asset_service
             .update(id, update_request.into())
@@ -200,14 +203,15 @@ impl AssetApi {
             .tag("Assets")
             .description("Update an asset")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<UpdateResponse>, _>(|res| {
+            .response_with::<200, Json<AssetUpdateResponse>, _>(|res| {
                 res.description("The newly updated asset")
-                    .example(UpdateResponse {
+                    .example(AssetUpdateResponse {
                         id: AssetId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "Asset Name".into(),
                         symbol: "SYM".into(),
+                        _phantom: PhantomData,
                     })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
