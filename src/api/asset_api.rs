@@ -80,12 +80,8 @@ impl FromRequestParts<Arc<AppState>> for AssetApiState {
         })?;
 
         let asset_service =
-            AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set)
-                .await
-                .map_err(|e| {
-                    error!("{e}");
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-                })?;
+            AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set).await;
+
         Ok(Self {
             authenticated_token,
             asset_service,

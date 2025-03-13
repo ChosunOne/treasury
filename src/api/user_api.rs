@@ -98,11 +98,7 @@ impl FromRequestParts<Arc<AppState>> for UserApiState {
             Arc::clone(&state.connection_pool),
             permission_set,
         )
-        .await
-        .map_err(|e| {
-            error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
-        })?;
+        .await;
 
         Ok(Self {
             authenticated_token,

@@ -15,7 +15,6 @@ use crate::authorization::{
     roles::Any,
 };
 use crate::resource::asset_repository::AssetRepository;
-use crate::service::ServiceFactoryError;
 use crate::service::asset_service::{AssetService, AssetServiceMethods};
 
 macro_rules! build_service {
@@ -32,7 +31,7 @@ macro_rules! build_service {
                     create_level == CreateLevel::$create &&
                     update_level == UpdateLevel::$update &&
                     delete_level == DeleteLevel::$delete => {
-                    Ok(Box::new(AssetService::<Policy<
+                    Box::new(AssetService::<Policy<
                         AssetResource,
                         ActionSet<
                             $read,
@@ -41,10 +40,10 @@ macro_rules! build_service {
                             $delete
                         >,
                         Any
-                    >>::new($pool, AssetRepository {})))
+                    >>::new($pool, AssetRepository {}))
                 },
             )*
-            _ => {Ok(Box::new(AssetService::<Policy<AssetResource, ActionSet, Any>>::new($pool, AssetRepository {})))}
+            _ => {Box::new(AssetService::<Policy<AssetResource, ActionSet, Any>>::new($pool, AssetRepository {}))}
         }
     };
 }
@@ -56,7 +55,7 @@ impl AssetServiceFactory {
     pub async fn build(
         connection_pool: Arc<RwLock<PgPool>>,
         permission_set: PermissionSet,
-    ) -> Result<Box<dyn AssetServiceMethods + Send>, ServiceFactoryError> {
+    ) -> Box<dyn AssetServiceMethods + Send> {
         build_service!(
             permission_set, connection_pool;
             [NoPermission, NoPermission, NoPermission, Delete],

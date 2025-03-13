@@ -14,7 +14,6 @@ use crate::authorization::policy::Policy;
 use crate::authorization::resources::User as UserResource;
 use crate::authorization::roles::Any;
 use crate::resource::user_repository::UserRepository;
-use crate::service::ServiceFactoryError;
 use crate::service::user_service::{UserService, UserServiceMethods};
 
 macro_rules! build_service {
@@ -31,7 +30,7 @@ macro_rules! build_service {
                     create_level == CreateLevel::$create &&
                     update_level == UpdateLevel::$update &&
                     delete_level == DeleteLevel::$delete => {
-                    Ok(Box::new(UserService::<Policy<
+                    Box::new(UserService::<Policy<
                         UserResource,
                         ActionSet<
                             $read,
@@ -40,10 +39,10 @@ macro_rules! build_service {
                             $delete
                         >,
                         Any
-                    >>::new($pool, UserRepository {}, $user)))
+                    >>::new($pool, UserRepository {}, $user))
                 },
             )*
-            _ => {Ok(Box::new(UserService::<Policy<UserResource, ActionSet, Any>>::new($pool, UserRepository {}, $user)))}
+            _ => {Box::new(UserService::<Policy<UserResource, ActionSet, Any>>::new($pool, UserRepository {}, $user))}
         }
     };
 }
@@ -56,7 +55,7 @@ impl UserServiceFactory {
         user: Option<RegisteredUser>,
         connection_pool: Arc<RwLock<PgPool>>,
         permission_set: PermissionSet,
-    ) -> Result<Box<dyn UserServiceMethods + Send>, ServiceFactoryError> {
+    ) -> Box<dyn UserServiceMethods + Send> {
         build_service!(
             permission_set, connection_pool, user;
             [NoPermission, NoPermission, NoPermission, Delete],

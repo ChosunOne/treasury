@@ -14,7 +14,6 @@ use crate::authorization::roles::Any;
 
 use crate::authorization::PermissionSet;
 use crate::resource::institution_repository::InstitutionRepository;
-use crate::service::ServiceFactoryError;
 use crate::service::institution_service::{InstitutionService, InstitutionServiceMethods};
 
 macro_rules! build_service {
@@ -31,7 +30,7 @@ macro_rules! build_service {
                     create_level == CreateLevel::$create &&
                     update_level == UpdateLevel::$update &&
                     delete_level == DeleteLevel::$delete => {
-                    Ok(Box::new(InstitutionService::<Policy<
+                    Box::new(InstitutionService::<Policy<
                         InstitutionResource,
                         ActionSet<
                             $read,
@@ -40,10 +39,10 @@ macro_rules! build_service {
                             $delete
                         >,
                         Any
-                    >>::new($pool, InstitutionRepository {})))
+                    >>::new($pool, InstitutionRepository {}))
                 },
             )*
-            _ => {Ok(Box::new(InstitutionService::<Policy<InstitutionResource, ActionSet, Any>>::new($pool, InstitutionRepository {})))}
+            _ => {Box::new(InstitutionService::<Policy<InstitutionResource, ActionSet, Any>>::new($pool, InstitutionRepository {}))}
         }
     };
 }
@@ -55,7 +54,7 @@ impl InstitutionServiceFactory {
     pub async fn build(
         connection_pool: Arc<RwLock<PgPool>>,
         permission_set: PermissionSet,
-    ) -> Result<Box<dyn InstitutionServiceMethods + Send>, ServiceFactoryError> {
+    ) -> Box<dyn InstitutionServiceMethods + Send> {
         build_service!(
             permission_set, connection_pool;
             [NoPermission, NoPermission, NoPermission, Delete],

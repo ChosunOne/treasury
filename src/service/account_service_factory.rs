@@ -14,7 +14,6 @@ use crate::authorization::policy::Policy;
 use crate::authorization::resources::Account as AccountResource;
 use crate::authorization::roles::Any;
 use crate::resource::account_repository::AccountRepository;
-use crate::service::ServiceFactoryError;
 use crate::service::account_service::{AccountService, AccountServiceMethods};
 
 macro_rules! build_service {
@@ -31,7 +30,7 @@ macro_rules! build_service {
                     create_level == CreateLevel::$create &&
                     update_level == UpdateLevel::$update &&
                     delete_level == DeleteLevel::$delete => {
-                    Ok(Box::new(AccountService::<Policy<
+                    Box::new(AccountService::<Policy<
                         AccountResource,
                         ActionSet<
                             $read,
@@ -40,10 +39,10 @@ macro_rules! build_service {
                             $delete
                         >,
                         Any
-                    >>::new($pool, AccountRepository {}, $user)))
+                    >>::new($pool, AccountRepository {}, $user))
                 },
             )*
-            _ => {Ok(Box::new(AccountService::<Policy<AccountResource, ActionSet, Any>>::new($pool, AccountRepository {}, $user)))}
+            _ => {Box::new(AccountService::<Policy<AccountResource, ActionSet, Any>>::new($pool, AccountRepository {}, $user))}
         }
     };
 }
@@ -56,7 +55,7 @@ impl AccountServiceFactory {
         user: RegisteredUser,
         connection_pool: Arc<RwLock<PgPool>>,
         permission_set: PermissionSet,
-    ) -> Result<Box<dyn AccountServiceMethods + Send>, ServiceFactoryError> {
+    ) -> Box<dyn AccountServiceMethods + Send> {
         build_service!(permission_set, connection_pool, user;
             [NoPermission, NoPermission, NoPermission, Delete],
             [NoPermission, NoPermission, NoPermission, DeleteAll],

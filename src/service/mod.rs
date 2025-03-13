@@ -33,6 +33,3 @@ impl From<RepositoryError> for ServiceError {
         }
     }
 }
-
-#[derive(Debug, Error)]
-pub enum ServiceFactoryError {}
