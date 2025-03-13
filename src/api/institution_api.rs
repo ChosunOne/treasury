@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use aide::{
     OperationInput,
@@ -33,8 +33,9 @@ use crate::{
     schema::{
         Pagination,
         institution::{
-            CreateRequest, CreateResponse, DeleteResponse, GetListInstitution, GetListRequest,
-            GetListResponse, GetResponse, UpdateRequest, UpdateResponse,
+            CreateRequest, DeleteResponse, GetList, GetListRequest, InstitutionCreateResponse,
+            InstitutionGetListResponse, InstitutionGetResponse, InstitutionResponse,
+            InstitutionUpdateResponse, UpdateRequest,
         },
     },
     service::{
@@ -104,13 +105,13 @@ impl InstitutionApi {
         pagination: Pagination,
         cursor_key: CursorKey,
         Query(filter): Query<GetListRequest>,
-    ) -> Result<GetListResponse, ApiError> {
+    ) -> Result<InstitutionGetListResponse, ApiError> {
         let offset = pagination.offset();
         let institutions = state
             .institution_service
             .get_list(offset, pagination.max_items, filter.into())
             .await?;
-        let response = GetListResponse::new(institutions, &pagination, &cursor_key)?;
+        let response = InstitutionGetListResponse::new(institutions, &pagination, &cursor_key)?;
         Ok(response)
     }
 
@@ -119,10 +120,10 @@ impl InstitutionApi {
             .tag("Institutions")
             .description("Get a list of institutions.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<GetListResponse>, _>(|res| {
+            .response_with::<200, Json<InstitutionGetListResponse>, _>(|res| {
                 res.description("A list of institutions")
-                    .example(GetListResponse {
-                        institutions: vec![GetListInstitution::default(); 3],
+                    .example(InstitutionGetListResponse {
+                        institutions: vec![InstitutionResponse::<GetList>::default(); 3],
                         next_cursor: "<cursor to get the next set of institutions>"
                             .to_owned()
                             .into(),
@@ -136,7 +137,7 @@ impl InstitutionApi {
     pub async fn get(
         Path(PathInstitutionId { id }): Path<PathInstitutionId>,
         state: InstitutionApiState,
-    ) -> Result<GetResponse, ApiError> {
+    ) -> Result<InstitutionGetResponse, ApiError> {
         let institution = state.institution_service.get(id).await?;
         let response = institution.into();
         Ok(response)
@@ -147,13 +148,15 @@ impl InstitutionApi {
             .tag("Institutions")
             .description("Get an institution by id.")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<GetResponse>, _>(|res| {
-                res.description("An institution").example(GetResponse {
-                    id: InstitutionId::default(),
-                    created_at: Utc::now().to_rfc3339(),
-                    updated_at: Utc::now().to_rfc3339(),
-                    name: "Institution Name".into(),
-                })
+            .response_with::<200, Json<InstitutionGetResponse>, _>(|res| {
+                res.description("An institution")
+                    .example(InstitutionGetResponse {
+                        id: InstitutionId::default(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
+                        name: "Institution Name".into(),
+                        _phantom: PhantomData,
+                    })
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
                 res.description("Institution not found.")
@@ -166,7 +169,7 @@ impl InstitutionApi {
     pub async fn create(
         state: InstitutionApiState,
         Json(create_request): Json<CreateRequest>,
-    ) -> Result<CreateResponse, ApiError> {
+    ) -> Result<InstitutionCreateResponse, ApiError> {
         let institution = state
             .institution_service
             .create(create_request.into())
@@ -179,14 +182,16 @@ impl InstitutionApi {
             .tag("Institutions")
             .description("Create a new institution")
             .security_requirement("OpenIdConnect")
-            .response_with::<201, Json<CreateResponse>, _>(|res| {
-                res.description("The newly created institution")
-                    .example(CreateResponse {
+            .response_with::<201, Json<InstitutionCreateResponse>, _>(|res| {
+                res.description("The newly created institution").example(
+                    InstitutionCreateResponse {
                         id: InstitutionId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "Institution Name".into(),
-                    })
+                        _phantom: PhantomData,
+                    },
+                )
             })
     }
 
@@ -194,7 +199,7 @@ impl InstitutionApi {
         state: InstitutionApiState,
         Path(PathInstitutionId { id }): Path<PathInstitutionId>,
         Json(update_request): Json<UpdateRequest>,
-    ) -> Result<UpdateResponse, ApiError> {
+    ) -> Result<InstitutionUpdateResponse, ApiError> {
         let institution = state
             .institution_service
             .update(id, update_request.into())
@@ -207,14 +212,16 @@ impl InstitutionApi {
             .tag("Institutions")
             .description("Update an institution")
             .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<UpdateResponse>, _>(|res| {
-                res.description("The newly updated institution")
-                    .example(UpdateResponse {
+            .response_with::<200, Json<InstitutionUpdateResponse>, _>(|res| {
+                res.description("The newly updated institution").example(
+                    InstitutionUpdateResponse {
                         id: InstitutionId::default(),
-                        created_at: Utc::now().to_rfc3339(),
-                        updated_at: Utc::now().to_rfc3339(),
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
                         name: "Institution Name".into(),
-                    })
+                        _phantom: PhantomData,
+                    },
+                )
             })
             .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
                 res.description("The institution was not found.")

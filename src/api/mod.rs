@@ -214,7 +214,7 @@ mod test {
     use tokio::sync::RwLock;
     use tower::{Service, ServiceExt};
     use tracing::subscriber::DefaultGuard;
-    use tracing_subscriber::{EnvFilter, FmtSubscriber}; // for `collect`
+    use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
     use crate::{
         AUTH_MODEL_PATH, AUTH_POLICY_PATH,
@@ -224,7 +224,7 @@ mod test {
                 AccountCreateResponse, CreateRequest as AccountCreateRequest,
                 GetListResponse as AccountGetListResponse,
             },
-            institution::{GetListInstitution, GetListResponse as InstitutionGetListResponse},
+            institution::{GetList, InstitutionGetListResponse, InstitutionResponse},
             user::{
                 CreateRequest as UserCreateRequest, UpdateRequest as UserUpdateRequest,
                 UserCreateResponse, UserDeleteResponse, UserGetResponse, UserUpdateResponse,
@@ -332,7 +332,7 @@ mod test {
         name: &str,
         auth_token: &str,
         api: &mut RouterIntoService<Body>,
-    ) -> GetListInstitution {
+    ) -> InstitutionResponse<GetList> {
         let name = urlencoding::encode(name);
         let request = Request::builder()
             .method("GET")

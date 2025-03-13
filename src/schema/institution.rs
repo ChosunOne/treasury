@@ -1,8 +1,11 @@
+use std::marker::PhantomData;
+
 use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -14,8 +17,68 @@ use crate::{
             Institution, InstitutionCreate, InstitutionFilter, InstitutionId, InstitutionUpdate,
         },
     },
-    schema::{Pagination, deserialize_optional_url_encoded},
+    schema::{
+        Pagination, deserialize_datetime, deserialize_optional_url_encoded, serialize_datetime,
+    },
 };
+
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct GetResponse;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct GetList;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct CreateResponse;
+#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+pub struct UpdateResponse;
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
+pub struct InstitutionResponse<T> {
+    pub id: InstitutionId,
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
+    pub created_at: DateTime<Utc>,
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
+    pub updated_at: DateTime<Utc>,
+    pub name: String,
+
+    #[serde(skip)]
+    pub _phantom: PhantomData<T>,
+}
+
+impl<T> From<Institution> for InstitutionResponse<T> {
+    fn from(value: Institution) -> Self {
+        Self {
+            id: value.id,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            name: value.name,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl IntoResponse for InstitutionResponse<CreateResponse> {
+    fn into_response(self) -> Response {
+        (StatusCode::CREATED, Json(self)).into_response()
+    }
+}
+
+impl IntoResponse for InstitutionResponse<GetResponse> {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+impl IntoResponse for InstitutionResponse<UpdateResponse> {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct CreateRequest {
@@ -25,56 +88,6 @@ pub struct CreateRequest {
 impl From<CreateRequest> for InstitutionCreate {
     fn from(value: CreateRequest) -> Self {
         Self { name: value.name }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct CreateResponse {
-    pub id: InstitutionId,
-    pub created_at: String,
-    pub updated_at: String,
-    pub name: String,
-}
-
-impl From<Institution> for CreateResponse {
-    fn from(value: Institution) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-        }
-    }
-}
-
-impl IntoResponse for CreateResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::CREATED, Json(self)).into_response()
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetResponse {
-    pub id: InstitutionId,
-    pub created_at: String,
-    pub updated_at: String,
-    pub name: String,
-}
-
-impl From<Institution> for GetResponse {
-    fn from(value: Institution) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-        }
-    }
-}
-
-impl IntoResponse for GetResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::OK, Json(self)).into_response()
     }
 }
 
@@ -96,33 +109,10 @@ impl From<GetListRequest> for InstitutionFilter {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct GetListInstitution {
-    /// The institution id
-    pub id: InstitutionId,
-    /// When the institution was created
-    pub created_at: String,
-    /// When the institution was updated
-    pub updated_at: String,
-    /// The institution name
-    pub name: String,
-}
-
-impl From<Institution> for GetListInstitution {
-    fn from(value: Institution) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo)]
 pub struct GetListResponse {
     /// The list of institutions
-    pub institutions: Vec<GetListInstitution>,
+    pub institutions: Vec<InstitutionResponse<GetList>>,
     /// The cursor to get the next set of users
     pub next_cursor: Option<String>,
     /// The cursor to get the previous set of users
@@ -171,35 +161,6 @@ impl From<UpdateRequest> for InstitutionUpdate {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
-pub struct UpdateResponse {
-    /// The institution id
-    pub id: InstitutionId,
-    /// When the institution was created
-    pub created_at: String,
-    /// When the institution was updated
-    pub updated_at: String,
-    /// The institution name
-    pub name: String,
-}
-
-impl IntoResponse for UpdateResponse {
-    fn into_response(self) -> Response {
-        (StatusCode::OK, Json(self)).into_response()
-    }
-}
-
-impl From<Institution> for UpdateResponse {
-    fn from(value: Institution) -> Self {
-        Self {
-            id: value.id,
-            created_at: value.created_at.to_rfc3339(),
-            updated_at: value.updated_at.to_rfc3339(),
-            name: value.name,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
 pub struct DeleteResponse;
 
 impl IntoResponse for DeleteResponse {
@@ -207,3 +168,8 @@ impl IntoResponse for DeleteResponse {
         StatusCode::NO_CONTENT.into_response()
     }
 }
+
+pub type InstitutionGetResponse = InstitutionResponse<GetResponse>;
+pub type InstitutionGetListResponse = GetListResponse;
+pub type InstitutionCreateResponse = InstitutionResponse<CreateResponse>;
+pub type InstitutionUpdateResponse = InstitutionResponse<UpdateResponse>;
