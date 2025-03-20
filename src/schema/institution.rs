@@ -1,13 +1,11 @@
 use std::marker::PhantomData;
 
-use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,7 +21,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct InstitutionResponse<T> {
     pub id: InstitutionId,
     #[serde(
@@ -72,7 +70,7 @@ impl IntoResponse for InstitutionResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CreateRequest {
     pub name: String,
 }
@@ -83,10 +81,9 @@ impl From<CreateRequest> for InstitutionCreate {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct GetListRequest {
     /// The name to filter on
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -101,7 +98,7 @@ impl From<GetListRequest> for InstitutionFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetListResponse {
     /// The list of institutions
     pub institutions: Vec<InstitutionResponse<GetList>>,
@@ -138,10 +135,9 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateRequest {
     /// The new institution name
-    #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
@@ -152,7 +148,7 @@ impl From<UpdateRequest> for InstitutionUpdate {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DeleteResponse;
 
 impl IntoResponse for DeleteResponse {

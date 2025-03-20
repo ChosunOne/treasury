@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use derive_more::{Display, From, FromStr};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::model::Filter;
@@ -20,7 +20,7 @@ use crate::model::Filter;
     Type,
     Serialize,
     Deserialize,
-    JsonSchema,
+    ToSchema,
 )]
 #[sqlx(transparent)]
 pub struct UserId(pub Uuid);

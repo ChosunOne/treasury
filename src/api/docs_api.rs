@@ -1,66 +1,59 @@
-use std::sync::Arc;
+use std::env::var;
 
-use aide::{
-    axum::{
-        ApiRouter, IntoApiResponse,
-        routing::{get, get_with},
-    },
-    openapi::OpenApi,
-    redoc::Redoc,
-    scalar::Scalar,
-    swagger::Swagger,
+use axum::{Router, response::Html, routing::get};
+use utoipa::{
+    Modify, OpenApi,
+    openapi::security::{OpenIdConnect, SecurityScheme},
 };
-use axum::{
-    Extension, Json,
-    response::{Html, IntoResponse},
+use utoipauto::utoipauto;
+
+use crate::{
+    api::{Api, AppState},
+    authentication::authenticator::AUTH_WELL_KNOWN_URI,
 };
 
-use crate::api::{Api, AppState};
-
+#[utoipauto]
+#[derive(OpenApi)]
+#[openapi(
+    tags(
+        (name = "Accounts", description = "Account endpoints"),
+        (name = "Assets", description = "Asset endpoints"),
+        (name = "Institutions", description = "Institution endpoints"),
+        (name = "Transactions", description = "Transaction endpoints"),
+        (name = "Users", description = "User endpoints")
+    ),
+    modifiers(&SecurityAddon)
+)]
 pub struct DocsApi;
 
-impl DocsApi {
-    pub async fn serve_docs(Extension(api): Extension<Arc<OpenApi>>) -> impl IntoApiResponse {
-        Json(api).into_response()
-    }
+pub struct SecurityAddon;
 
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(schema) = openapi.components.as_mut() {
+            schema.add_security_scheme(
+                "OpenIDConnect",
+                SecurityScheme::OpenIdConnect(OpenIdConnect::with_description(
+                    AUTH_WELL_KNOWN_URI.get_or_init(|| {
+                        var("AUTH_WELL_KNOWN_URI")
+                            .expect("Failed to read `AUTH_WELL_KNOWN_URI` environment variable")
+                    }),
+                    &"Authenticate with Dex".to_owned(),
+                )),
+            );
+        }
+    }
+}
+
+impl DocsApi {
     pub async fn oauth2_redirect() -> Html<&'static str> {
         Html(include_str!("../../static/oauth2-redirect.html"))
     }
 }
 
 impl Api for DocsApi {
-    fn router(_state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
-        aide::generate::infer_responses(true);
-        ApiRouter::new()
-            .api_route(
-                "/",
-                get_with(
-                    Scalar::new("/docs/private/api.json")
-                        .with_title("Treasury Docs")
-                        .axum_handler(),
-                    |op| op.description("This documentation page").hidden(true),
-                ),
-            )
-            .api_route(
-                "/redoc",
-                get_with(
-                    Redoc::new("/docs/private/api.json")
-                        .with_title("Treasury Docs")
-                        .axum_handler(),
-                    |op| op.description("This documentation page").hidden(true),
-                ),
-            )
-            .api_route(
-                "/swagger",
-                get_with(
-                    Swagger::new("/docs/private/api.json")
-                        .with_title("Treasury Docs")
-                        .axum_handler(),
-                    |op| op.description("This documentation page").hidden(true),
-                ),
-            )
-            .route("/private/api.json", get(Self::serve_docs))
+    fn router(_state: AppState) -> Router<AppState> {
+        Router::new()
             .route("/oauth2-redirect", get(Self::oauth2_redirect))
             .route("/oauth2-redirect.html", get(Self::oauth2_redirect))
     }

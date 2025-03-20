@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use derive_more::{From, FromStr};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 use uuid::Uuid;
@@ -8,18 +7,7 @@ use uuid::Uuid;
 use crate::model::Filter;
 
 #[derive(
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    FromStr,
-    From,
-    Type,
-    Serialize,
-    Deserialize,
-    JsonSchema,
+    Debug, Default, Clone, Copy, PartialEq, Eq, FromStr, From, Type, Serialize, Deserialize,
 )]
 #[sqlx(transparent)]
 pub struct AssetId(pub Uuid);

@@ -1,13 +1,11 @@
 use std::marker::PhantomData;
 
-use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -21,7 +19,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct AssetResponse<T> {
     /// The asset id
     pub id: AssetId,
@@ -76,7 +74,7 @@ impl IntoResponse for AssetResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CreateRequest {
     pub name: String,
     pub symbol: String,
@@ -91,9 +89,8 @@ impl From<CreateRequest> for AssetCreate {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct GetListRequest {
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -101,7 +98,6 @@ pub struct GetListRequest {
     )]
     pub name: Option<String>,
 
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -119,7 +115,7 @@ impl From<GetListRequest> for AssetFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetListResponse {
     pub assets: Vec<AssetResponse<GetList>>,
     pub next_cursor: Option<String>,
@@ -149,13 +145,11 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateRequest {
-    #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
-    #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
 }
@@ -169,7 +163,7 @@ impl From<UpdateRequest> for AssetUpdate {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DeleteResponse;
 
 impl IntoResponse for DeleteResponse {

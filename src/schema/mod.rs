@@ -1,6 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-use aide::OperationIo;
 use axum::{
     RequestPartsExt,
     extract::{FromRequestParts, Query},
@@ -14,12 +13,9 @@ use base64::{
 use cached::proc_macro::cached;
 use chrono::{DateTime, Utc};
 use http::{StatusCode, request::Parts};
-use schemars::{
-    JsonSchema, SchemaGenerator,
-    schema::{InstanceType, Schema, SchemaObject},
-};
 use serde::{Deserialize, Deserializer, Serializer};
 use tracing::{debug, error};
+use utoipa::{IntoParams, ToSchema};
 use zerocopy::FromBytes;
 use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
 
@@ -35,16 +31,17 @@ pub mod institution;
 pub mod transaction;
 pub mod user;
 
-#[derive(Debug, Clone, Copy, JsonSchema, OperationIo, Deserialize)]
-#[aide(input_with = "axum::extract::Query<Pagination>")]
+#[derive(Debug, Clone, Copy, Deserialize, IntoParams, ToSchema)]
+#[into_params(parameter_in = Query)]
 pub struct Pagination {
     /// The maximum items to return
-    #[schemars(with = "i64")]
-    #[serde(default)]
+    #[param(value_type = i64, required = false)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_items: Option<i64>,
     /// The request cursor
-    #[schemars(with = "String")]
-    #[serde(default)]
+    #[param(value_type = String, required = false)]
+    #[schema(value_type = String, required = false)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<Cursor>,
 }
 
@@ -86,9 +83,7 @@ impl Pagination {
     }
 }
 
-#[derive(
-    Debug, Default, Deserialize, Clone, Copy, OperationIo, IntoBytes, Immutable, FromBytes,
-)]
+#[derive(Debug, Default, Deserialize, Clone, Copy, IntoBytes, Immutable, FromBytes)]
 pub struct Cursor {
     pub offset: i64,
 }
@@ -100,7 +95,7 @@ pub struct Cursor {
     result = true
 )]
 async fn get_cursor_key(
-    state: &Arc<AppState>,
+    state: &AppState,
     cursor_key_id: CursorKeyId,
 ) -> Result<CursorKey, Response> {
     debug!("Refreshing cursor key");
@@ -126,12 +121,12 @@ async fn get_cursor_key(
 
 // We need to make sure the cursor is opaque so that clients don't
 // rely on the implementation details.
-impl FromRequestParts<Arc<AppState>> for Pagination {
+impl FromRequestParts<AppState> for Pagination {
     type Rejection = Response;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &Arc<AppState>,
+        state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let query_params = parts
             .extract::<Query<HashMap<String, String>>>()
@@ -173,21 +168,6 @@ impl FromRequestParts<Arc<AppState>> for Pagination {
         };
 
         Ok(Self { max_items, cursor })
-    }
-}
-
-impl JsonSchema for Cursor {
-    fn schema_name() -> String {
-        "Cursor".into()
-    }
-
-    fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
-        let schema = SchemaObject {
-            instance_type: Some(InstanceType::String.into()),
-            ..Default::default()
-        };
-
-        Schema::Object(schema)
     }
 }
 
@@ -271,11 +251,11 @@ where
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, ToSchema)]
 pub struct GetResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, ToSchema)]
 pub struct GetList;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, ToSchema)]
 pub struct CreateResponse;
-#[derive(Copy, Clone, Debug, Default, JsonSchema, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, ToSchema)]
 pub struct UpdateResponse;

@@ -1,14 +1,15 @@
-use axum::serve;
-use casbin::{CoreApi, Enforcer};
-use sqlx::postgres::PgPoolOptions;
-use std::{env::var, sync::Arc};
-use tokio::net::TcpListener;
-use tracing::info;
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
-use treasury::{AUTH_MODEL_PATH, AUTH_POLICY_PATH, api::ApiV1};
-
+#[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
+    use axum::serve;
+    use casbin::{CoreApi, Enforcer};
+    use sqlx::postgres::PgPoolOptions;
+    use std::{env::var, sync::Arc};
+    use tokio::net::TcpListener;
+    use tracing::info;
+    use tracing_subscriber::{EnvFilter, FmtSubscriber};
+    use treasury::{AUTH_MODEL_PATH, AUTH_POLICY_PATH, api::ApiV1};
+
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(EnvFilter::from_default_env())
         .finish();
@@ -49,3 +50,6 @@ async fn main() {
         .await
         .expect("Failed to serve app");
 }
+
+#[cfg(not(feature = "ssr"))]
+async fn main() {}

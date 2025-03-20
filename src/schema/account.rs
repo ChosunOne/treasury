@@ -1,15 +1,15 @@
 use std::marker::PhantomData;
 
-use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
-use schemars::JsonSchema;
+use leptos::Params;
+use leptos_router::params::Params;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     model::{
@@ -24,7 +24,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq, ToSchema)]
 pub struct AccountResponse<T> {
     pub id: AccountId,
     #[serde(
@@ -89,7 +89,7 @@ impl IntoResponse for AccountResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CreateRequest {
     /// The account name
     pub name: String,
@@ -97,14 +97,15 @@ pub struct CreateRequest {
     pub institution_id: InstitutionId,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema, Params, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetListRequest {
     /// The name to filter on
-    #[schemars(with = "String")]
+    #[param(value_type = String, required = false)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// The institution_id to filter on
-    #[schemars(with = "Uuid")]
+    #[param(value_type = Uuid, required = false)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub institution_id: Option<InstitutionId>,
 }
@@ -119,7 +120,7 @@ impl From<GetListRequest> for AccountFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
 pub struct GetListResponse {
     /// The list of accounts
     pub accounts: Vec<AccountResponse<GetList>>,
@@ -152,7 +153,7 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UpdateRequest {
     pub name: String,
 }
@@ -163,7 +164,7 @@ impl From<UpdateRequest> for AccountUpdate {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DeleteResponse;
 
 impl IntoResponse for DeleteResponse {

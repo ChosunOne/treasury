@@ -4,24 +4,25 @@ use std::{
     time::Duration,
 };
 
-use aide::{
-    OperationIo,
-    axum::ApiRouter,
-    openapi::{OpenApi, SecurityScheme},
-    transform::TransformOpenApi,
-};
 use axum::{
-    Extension, Json, Router,
-    extract::{FromRequest, Request, rejection::JsonRejection},
+    Json, Router,
+    extract::{FromRef, FromRequest, Request},
     middleware::Next,
     response::{IntoResponse, Response},
 };
 use casbin::Enforcer;
 use docs_api::DocsApi;
 use http::{Method, StatusCode};
-use indexmap::IndexMap;
-use schemars::JsonSchema;
-use serde::Serialize;
+use leptos::{
+    prelude::*,
+    server_fn::{
+        codec::IntoRes,
+        error::{FromServerFnError, ServerFnErrorErr},
+    },
+};
+use leptos_axum::AxumRouteListing;
+use leptos_router::{Method as LeptosMethod, SsrMode};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::PgPool;
 use thiserror::Error;
 use tower::ServiceBuilder;
@@ -30,16 +31,15 @@ use tower_http::{
 };
 use tracing::error;
 use user_api::UserApi;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     api::{
         account_api::AccountApi, asset_api::AssetApi, institution_api::InstitutionApi,
         transaction_api::TransactionApi,
     },
-    authentication::{
-        authenticated_token::AuthenticatedToken, authenticator::AUTH_WELL_KNOWN_URI,
-        registered_user::RegisteredUser,
-    },
+    authentication::{authenticated_token::AuthenticatedToken, registered_user::RegisteredUser},
     model::cursor_key::EncryptionError,
     service::ServiceError,
 };
@@ -72,35 +72,53 @@ pub async fn set_user_groups(
 }
 
 pub trait Api {
-    fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>>;
+    fn routes(mode: SsrMode) -> Vec<AxumRouteListing> {
+        vec![
+            AxumRouteListing::new(
+                "/".to_owned(),
+                mode.clone(),
+                vec![LeptosMethod::Get, LeptosMethod::Post],
+                vec![],
+            ),
+            AxumRouteListing::new(
+                "/{id}".to_owned(),
+                mode.clone(),
+                vec![LeptosMethod::Get, LeptosMethod::Patch, LeptosMethod::Delete],
+                vec![],
+            ),
+        ]
+    }
+    fn router(state: AppState) -> Router<AppState>;
 }
 
 pub struct ApiV1;
 
 impl ApiV1 {
     pub fn router(connection_pool: Arc<PgPool>, enforcer: Arc<Enforcer>) -> Router {
-        let mut api = OpenApi::default();
-
         let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
             var("CORS_ALLOWED_ORIGIN")
                 .expect("Failed to read `CORS_ALLOWED_ORIGIN` environment variable.")
         });
-        let state = Arc::new(AppState {
+        let conf = get_configuration(Some("Cargo.toml")).unwrap();
+        let leptos_options = conf.leptos_options;
+        let state = AppState {
             connection_pool,
             enforcer,
-        });
-        ApiRouter::<Arc<AppState>>::new()
-            .nest("/accounts", AccountApi::router(Arc::clone(&state)))
-            .nest("/assets", AssetApi::router(Arc::clone(&state)))
-            .nest("/transactions", TransactionApi::router(Arc::clone(&state)))
-            .nest("/users", UserApi::router(Arc::clone(&state)))
-            .nest("/institutions", InstitutionApi::router(Arc::clone(&state)))
-            .nest("/docs", DocsApi::router(Arc::clone(&state)))
-            .finish_api_with(&mut api, Self::api_docs)
+            leptos_options,
+        };
+
+        let swagger = SwaggerUi::new("/docs").url("/private/api.json", DocsApi::openapi());
+        Router::new()
+            .merge(swagger)
+            .nest("/api/accounts", AccountApi::router(state.clone()))
+            .nest("/api/assets", AssetApi::router(state.clone()))
+            .nest("/api/transactions", TransactionApi::router(state.clone()))
+            .nest("/api/users", UserApi::router(state.clone()))
+            .nest("/api/institutions", InstitutionApi::router(state.clone()))
+            .nest("/docs", DocsApi::router(state.clone()))
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
-                    .layer(Extension(Arc::new(api)))
                     .layer(CompressionLayer::new().gzip(true))
                     .layer(TimeoutLayer::new(Duration::from_secs(30)))
                     .layer(
@@ -117,31 +135,16 @@ impl ApiV1 {
             )
             .with_state(state)
     }
-
-    fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
-        api.title("Treasury Docs").security_scheme(
-            "OpenIdConnect",
-            SecurityScheme::OpenIdConnect {
-                open_id_connect_url: AUTH_WELL_KNOWN_URI
-                    .get_or_init(|| {
-                        var("AUTH_WELL_KNOWN_URI")
-                            .expect("Failed to read `AUTH_WELL_KNOWN_URI` environment variable")
-                    })
-                    .into(),
-                description: Some("Authenticate with Dex".into()),
-                extensions: IndexMap::default(),
-            },
-        )
-    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, FromRef)]
 pub struct AppState {
     pub connection_pool: Arc<PgPool>,
     pub enforcer: Arc<Enforcer>,
+    pub leptos_options: LeptosOptions,
 }
 
-#[derive(FromRequest, OperationIo, Serialize)]
+#[derive(FromRequest, Serialize)]
 #[from_request(via(Json), rejection(ApiError))]
 pub struct ApiJson<T>(T);
 
@@ -154,52 +157,165 @@ where
     }
 }
 
-#[derive(Debug, Error, OperationIo)]
+#[derive(Debug, Error)]
 pub enum ApiError {
     #[error("Invalid JSON in request.")]
-    JsonRejection(#[from] JsonRejection),
+    JsonRejection,
     #[error("Not found.")]
     NotFound,
     #[error("Error in service.")]
     Service(#[from] ServiceError),
     #[error("{0}")]
     Encryption(#[from] EncryptionError),
+    #[error("Internal server error.")]
+    ServerError,
+    #[error("{0}")]
+    ClientError(String),
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+impl ApiError {
+    pub fn status(&self) -> StatusCode {
+        match self {
+            ApiError::JsonRejection => StatusCode::BAD_REQUEST,
+            ApiError::NotFound => StatusCode::NOT_FOUND,
+            ApiError::Service(service_error) => match service_error {
+                ServiceError::AlreadyRegistered => StatusCode::CONFLICT,
+                ServiceError::NotFound => StatusCode::NOT_FOUND,
+                ServiceError::Unauthorized => StatusCode::FORBIDDEN,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
+            ApiError::Encryption(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::ClientError(_) => StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+impl Serialize for ApiError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ApiErrorResponse::from(self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ApiError {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let error_response = ApiErrorResponse::deserialize(deserializer)?;
+        match error_response.code {
+            INTERNAL_SERVER_ERROR => Ok(Self::ServerError),
+            _ => Ok(Self::ClientError(error_response.message)),
+        }
+    }
+}
+
+impl From<ServerFnError> for ApiError {
+    fn from(value: ServerFnError) -> Self {
+        match value {
+            ServerFnError::Request(e) => Self::ClientError(e),
+            ServerFnError::Deserialization(e) => Self::ClientError(e),
+            ServerFnError::Serialization(e) => Self::ClientError(e),
+            e => {
+                error!("{e}");
+                Self::ServerError
+            }
+        }
+    }
+}
+
+impl FromServerFnError for ApiError {
+    fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
+        match value {
+            ServerFnErrorErr::Request(e) => Self::ClientError(e),
+            ServerFnErrorErr::Deserialization(e) => Self::ClientError(e),
+            ServerFnErrorErr::Serialization(e) => Self::ClientError(e),
+            e => {
+                error!("{e}");
+                Self::ServerError
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApiErrorResponse {
+    code: usize,
     message: String,
+}
+
+const JSON_REJECTION: usize = 4000;
+const BAD_REQUEST: usize = 4001;
+const FORBIDDEN: usize = 4030;
+const NOT_FOUND: usize = 4040;
+const ALREADY_REGISTERED: usize = 4090;
+const INTERNAL_SERVER_ERROR: usize = 5000;
+
+impl From<&ApiError> for ApiErrorResponse {
+    fn from(value: &ApiError) -> Self {
+        match value {
+            ApiError::JsonRejection => Self {
+                code: JSON_REJECTION,
+                message: "Invalid JSON in request.".into(),
+            },
+            ApiError::NotFound => Self {
+                code: NOT_FOUND,
+                message: "Not found.".into(),
+            },
+            ApiError::Service(service_error) => match service_error {
+                ServiceError::AlreadyRegistered => Self {
+                    code: ALREADY_REGISTERED,
+                    message: "User is already registered.".into(),
+                },
+                ServiceError::NotFound => Self {
+                    code: NOT_FOUND,
+                    message: "Not found.".into(),
+                },
+                ServiceError::Unauthorized => Self {
+                    code: FORBIDDEN,
+                    message: "Forbidden.".into(),
+                },
+                e => {
+                    error!("{e}");
+                    Self {
+                        code: INTERNAL_SERVER_ERROR,
+                        message: "Internal server error.".into(),
+                    }
+                }
+            },
+            ApiError::ServerError => Self {
+                code: INTERNAL_SERVER_ERROR,
+                message: "Internal server error.".into(),
+            },
+            ApiError::ClientError(message) => Self {
+                code: BAD_REQUEST,
+                message: message.clone(),
+            },
+            e => {
+                error!("{e}");
+                Self {
+                    code: INTERNAL_SERVER_ERROR,
+                    message: "Internal server error.".into(),
+                }
+            }
+        }
+    }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
-            Self::JsonRejection(rejection) => (rejection.status(), rejection.body_text()),
-            Self::Service(service_error) => match service_error {
-                ServiceError::AlreadyRegistered => {
-                    (StatusCode::CONFLICT, "User is already registered".into())
-                }
-                ServiceError::NotFound => (StatusCode::NOT_FOUND, "Not found.".into()),
-                ServiceError::Unauthorized => (StatusCode::FORBIDDEN, "Forbidden".into()),
-                e => {
-                    error!("{e}");
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Internal server error.".into(),
-                    )
-                }
-            },
-            Self::NotFound => (StatusCode::NOT_FOUND, "Not found.".into()),
-            e => {
-                error!("{e}");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal server error.".into(),
-                )
-            }
-        };
+        let status = self.status();
+        let message = ApiErrorResponse::from(&self);
+        (status, ApiJson(message)).into_response()
+    }
+}
 
-        (status, ApiJson(ApiErrorResponse { message })).into_response()
+impl IntoRes<ApiJson<ApiErrorResponse>, Response, ()> for ApiError {
+    async fn into_res(self) -> Result<Response, ()> {
+        Ok(self.into_response())
     }
 }
 
@@ -366,7 +482,7 @@ mod test {
     }
 
     async fn create_account(
-        create_reqeust: &AccountCreateRequest,
+        create_request: &AccountCreateRequest,
         auth_token: &str,
         api: &mut RouterIntoService<Body>,
     ) -> AccountCreateResponse {
@@ -376,7 +492,7 @@ mod test {
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .uri("/accounts")
-            .body(Body::from(serde_json::to_vec(create_reqeust).unwrap()))
+            .body(Body::from(serde_json::to_vec(create_request).unwrap()))
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
             .await

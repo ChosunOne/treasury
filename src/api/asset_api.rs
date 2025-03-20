@@ -1,29 +1,23 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
-use aide::{
-    OperationInput,
-    axum::{
-        ApiRouter,
-        routing::{delete_with, get_with, patch_with, post_with},
-    },
-    transform::TransformOperation,
-};
 use axum::{
-    Json, RequestPartsExt,
+    Json, RequestPartsExt, Router,
     extract::{FromRequestParts, Path, Query},
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
-use chrono::Utc;
 use http::{StatusCode, request::Parts};
-use schemars::JsonSchema;
+use leptos::prelude::provide_context;
+use leptos_axum::LeptosRoutes;
+use leptos_router::SsrMode;
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
+    api::{Api, ApiError, AppState, set_user_groups},
+    app::App,
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
     authorization::{
         PermissionConfig, PermissionSet,
@@ -31,16 +25,16 @@ use crate::{
     },
     model::{asset::AssetId, cursor_key::CursorKey},
     schema::{
-        GetList, Pagination,
+        Pagination,
         asset::{
-            AssetCreateResponse, AssetGetListResponse, AssetGetResponse, AssetResponse,
-            AssetUpdateResponse, CreateRequest, DeleteResponse, GetListRequest, UpdateRequest,
+            AssetCreateResponse, AssetGetListResponse, AssetGetResponse, AssetUpdateResponse,
+            CreateRequest, DeleteResponse, GetListRequest, UpdateRequest,
         },
     },
     service::{asset_service::AssetServiceMethods, asset_service_factory::AssetServiceFactory},
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct PathAssetId {
     id: AssetId,
 }
@@ -50,14 +44,12 @@ pub struct AssetApiState {
     pub asset_service: Box<dyn AssetServiceMethods + Send>,
 }
 
-impl OperationInput for AssetApiState {}
-
-impl FromRequestParts<Arc<AppState>> for AssetApiState {
+impl FromRequestParts<AppState> for AssetApiState {
     type Rejection = Response;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &Arc<AppState>,
+        state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let authenticated_token = parts
             .extract_with_state::<AuthenticatedToken, _>(state)
@@ -88,168 +80,71 @@ impl FromRequestParts<Arc<AppState>> for AssetApiState {
         })
     }
 }
+async fn get_list(
+    state: AssetApiState,
+    pagination: Pagination,
+    cursor_key: CursorKey,
+    Query(filter): Query<GetListRequest>,
+) -> Result<AssetGetListResponse, ApiError> {
+    let offset = pagination.offset();
+    let assets = state
+        .asset_service
+        .get_list(offset, pagination.max_items, filter.into())
+        .await?;
+    let response = AssetGetListResponse::new(assets, &pagination, &cursor_key)?;
+    Ok(response)
+}
+
+async fn get(
+    Path(PathAssetId { id }): Path<PathAssetId>,
+    state: AssetApiState,
+) -> Result<AssetGetResponse, ApiError> {
+    let asset = state.asset_service.get(id).await?;
+    Ok(asset.into())
+}
+
+async fn create(
+    state: AssetApiState,
+    Json(create_request): Json<CreateRequest>,
+) -> Result<AssetCreateResponse, ApiError> {
+    let asset = state.asset_service.create(create_request.into()).await?;
+    Ok(asset.into())
+}
+
+async fn update(
+    state: AssetApiState,
+    Path(PathAssetId { id }): Path<PathAssetId>,
+    Json(update_request): Json<UpdateRequest>,
+) -> Result<AssetUpdateResponse, ApiError> {
+    let asset = state
+        .asset_service
+        .update(id, update_request.into())
+        .await?;
+    Ok(asset.into())
+}
+
+async fn delete(
+    Path(PathAssetId { id }): Path<PathAssetId>,
+    state: AssetApiState,
+) -> Result<DeleteResponse, ApiError> {
+    state.asset_service.delete(id).await?;
+    Ok(DeleteResponse {})
+}
 
 pub struct AssetApi;
 
-impl AssetApi {
-    pub async fn get_list(
-        state: AssetApiState,
-        pagination: Pagination,
-        cursor_key: CursorKey,
-        Query(filter): Query<GetListRequest>,
-    ) -> Result<AssetGetListResponse, ApiError> {
-        let offset = pagination.offset();
-        let assets = state
-            .asset_service
-            .get_list(offset, pagination.max_items, filter.into())
-            .await?;
-        let response = AssetGetListResponse::new(assets, &pagination, &cursor_key)?;
-        Ok(response)
-    }
-
-    pub fn get_list_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_list_assets")
-            .tag("Assets")
-            .description("Get a list of assets.")
-            .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<AssetGetListResponse>, _>(|res| {
-                res.description("A list of assets")
-                    .example(AssetGetListResponse {
-                        assets: vec![AssetResponse::<GetList>::default(); 3],
-                        next_cursor: "<cursor to get the next set of assets>".to_owned().into(),
-                        prev_cursor: "<cursor to get the previous set of assets>"
-                            .to_owned()
-                            .into(),
-                    })
-            })
-    }
-
-    pub async fn get(
-        Path(PathAssetId { id }): Path<PathAssetId>,
-        state: AssetApiState,
-    ) -> Result<AssetGetResponse, ApiError> {
-        let asset = state.asset_service.get(id).await?;
-        Ok(asset.into())
-    }
-
-    pub fn get_docs(op: TransformOperation) -> TransformOperation {
-        op.id("get_asset")
-            .tag("Assets")
-            .description("Get an asset by id.")
-            .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<AssetGetResponse>, _>(|res| {
-                res.description("An asset").example(AssetGetResponse {
-                    id: AssetId::default(),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    name: "Asset Name".into(),
-                    symbol: "SYM".into(),
-                    _phantom: PhantomData,
-                })
-            })
-            .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("Asset not found.")
-                    .example(ApiErrorResponse {
-                        message: "Asset not found.".into(),
-                    })
-            })
-    }
-
-    pub async fn create(
-        state: AssetApiState,
-        Json(create_request): Json<CreateRequest>,
-    ) -> Result<AssetCreateResponse, ApiError> {
-        let asset = state.asset_service.create(create_request.into()).await?;
-        Ok(asset.into())
-    }
-
-    pub fn create_docs(op: TransformOperation) -> TransformOperation {
-        op.id("create_asset")
-            .tag("Assets")
-            .description("Create a new asset")
-            .security_requirement("OpenIdConnect")
-            .response_with::<201, Json<AssetCreateResponse>, _>(|res| {
-                res.description("The newly created asset")
-                    .example(AssetCreateResponse {
-                        id: AssetId::default(),
-                        created_at: Utc::now(),
-                        updated_at: Utc::now(),
-                        name: "Asset Name".into(),
-                        symbol: "SYM".into(),
-                        _phantom: PhantomData,
-                    })
-            })
-    }
-
-    pub async fn update(
-        state: AssetApiState,
-        Path(PathAssetId { id }): Path<PathAssetId>,
-        Json(update_request): Json<UpdateRequest>,
-    ) -> Result<AssetUpdateResponse, ApiError> {
-        let asset = state
-            .asset_service
-            .update(id, update_request.into())
-            .await?;
-        Ok(asset.into())
-    }
-
-    pub fn update_docs(op: TransformOperation) -> TransformOperation {
-        op.id("update_asset")
-            .tag("Assets")
-            .description("Update an asset")
-            .security_requirement("OpenIdConnect")
-            .response_with::<200, Json<AssetUpdateResponse>, _>(|res| {
-                res.description("The newly updated asset")
-                    .example(AssetUpdateResponse {
-                        id: AssetId::default(),
-                        created_at: Utc::now(),
-                        updated_at: Utc::now(),
-                        name: "Asset Name".into(),
-                        symbol: "SYM".into(),
-                        _phantom: PhantomData,
-                    })
-            })
-            .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("The asset was not found.")
-                    .example(ApiErrorResponse {
-                        message: "Asset not found.".into(),
-                    })
-            })
-    }
-
-    pub async fn delete(
-        Path(PathAssetId { id }): Path<PathAssetId>,
-        state: AssetApiState,
-    ) -> Result<DeleteResponse, ApiError> {
-        state.asset_service.delete(id).await?;
-        Ok(DeleteResponse {})
-    }
-
-    pub fn delete_docs(op: TransformOperation) -> TransformOperation {
-        op.id("delete_asset")
-            .tag("Assets")
-            .description("Delete an asset")
-            .security_requirement("OpenIdConnect")
-            .response_with::<204, (), _>(|res| {
-                res.description("The asset was successfully deleted.")
-            })
-            .response_with::<404, Json<ApiErrorResponse>, _>(|res| {
-                res.description("The asset was not found.")
-                    .example(ApiErrorResponse {
-                        message: "Asset not found.".into(),
-                    })
-            })
-    }
-}
-
 impl Api for AssetApi {
-    fn router(state: Arc<AppState>) -> ApiRouter<Arc<AppState>> {
-        ApiRouter::new()
-            .api_route("/", get_with(Self::get_list, Self::get_list_docs))
-            .api_route("/{id}", get_with(Self::get, Self::get_docs))
-            .api_route("/", post_with(Self::create, Self::create_docs))
-            .api_route("/{id}", patch_with(Self::update, Self::update_docs))
-            .api_route("/{id}", delete_with(Self::delete, Self::delete_docs))
+    fn router(state: AppState) -> Router<AppState> {
+        Router::new()
+            .leptos_routes_with_context(
+                &state,
+                Self::routes(SsrMode::OutOfOrder),
+                {
+                    let app_state = state.clone();
+                    move || provide_context(app_state.clone())
+                },
+                App,
+            )
             .layer(
                 ServiceBuilder::new()
                     .layer(AsyncRequireAuthorizationLayer::new(Authenticator))

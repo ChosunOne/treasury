@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use aide::OperationIo;
 use axum::{
     extract::{FromRequestParts, OptionalFromRequestParts},
     response::{IntoResponse, Response},
@@ -15,7 +12,7 @@ use crate::{
     resource::{GetListRepository, user_repository::UserRepository},
 };
 
-#[derive(Debug, Clone, OperationIo)]
+#[derive(Debug, Clone)]
 pub struct RegisteredUser {
     pub user: User,
 }
@@ -30,12 +27,12 @@ impl RegisteredUser {
     }
 }
 
-impl FromRequestParts<Arc<AppState>> for RegisteredUser {
+impl FromRequestParts<AppState> for RegisteredUser {
     type Rejection = Response;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &Arc<AppState>,
+        state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let authenticated_token = parts
             .extensions
@@ -73,12 +70,12 @@ impl FromRequestParts<Arc<AppState>> for RegisteredUser {
     }
 }
 
-impl OptionalFromRequestParts<Arc<AppState>> for RegisteredUser {
+impl OptionalFromRequestParts<AppState> for RegisteredUser {
     type Rejection = Response;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &Arc<AppState>,
+        state: &AppState,
     ) -> Result<Option<Self>, Self::Rejection> {
         let authenticated_token = parts
             .extensions

@@ -1,15 +1,12 @@
 use std::marker::PhantomData;
 
-use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::{
     model::{
@@ -27,7 +24,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct TransactionResponse<T> {
     pub id: TransactionId,
     #[serde(
@@ -88,7 +85,7 @@ impl IntoResponse for TransactionResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CreateRequest {
     #[serde(
         serialize_with = "serialize_datetime",
@@ -113,9 +110,8 @@ impl From<CreateRequest> for TransactionCreate {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct GetListRequest {
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -123,7 +119,6 @@ pub struct GetListRequest {
         deserialize_with = "deserialize_datetime_option"
     )]
     pub posted_at: Option<DateTime<Utc>>,
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -131,7 +126,6 @@ pub struct GetListRequest {
         deserialize_with = "deserialize_datetime_option"
     )]
     pub posted_before: Option<DateTime<Utc>>,
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -139,26 +133,20 @@ pub struct GetListRequest {
         deserialize_with = "deserialize_datetime_option"
     )]
     pub posted_after: Option<DateTime<Utc>>,
-    #[schemars(with = "i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
-    #[schemars(with = "i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_quantity: Option<i64>,
-    #[schemars(with = "i64")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_quantity: Option<i64>,
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
         deserialize_with = "deserialize_optional_url_encoded"
     )]
     pub description: Option<String>,
-    #[schemars(with = "Uuid")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_id: Option<AssetId>,
-    #[schemars(with = "Uuid")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account_id: Option<AccountId>,
 }
@@ -179,7 +167,7 @@ impl From<GetListRequest> for TransactionFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, OperationIo, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct GetListResponse {
     pub transactions: Vec<TransactionResponse<GetList>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -214,12 +202,10 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateRequest {
-    #[schemars(with = "Uuid")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_id: Option<AssetId>,
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -244,7 +230,7 @@ impl From<UpdateRequest> for TransactionUpdate {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DeleteResponse;
 
 impl IntoResponse for DeleteResponse {

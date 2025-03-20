@@ -1,7 +1,4 @@
-use std::sync::Arc;
-
 use aes_gcm_siv::{Aes256GcmSiv, Error as AesError, KeyInit, Nonce, aead::Aead};
-use aide::OperationIo;
 use axum::{
     extract::FromRequestParts,
     response::{IntoResponse, Response},
@@ -46,12 +43,11 @@ use crate::{
     Type,
     Deserialize,
     Display,
-    OperationIo,
 )]
 #[sqlx(transparent)]
 pub struct CursorKeyId(pub i32);
 
-#[derive(FromRow, Debug, Clone, OperationIo)]
+#[derive(FromRow, Debug, Clone)]
 pub struct CursorKey {
     pub id: CursorKeyId,
     pub created_at: DateTime<Utc>,
@@ -60,14 +56,20 @@ pub struct CursorKey {
     pub key_data: Vec<u8>,
 }
 
-#[derive(Debug, Error, OperationIo)]
+#[derive(Debug, Error, Serialize, Deserialize)]
 pub enum EncryptionError {
-    #[error("{0}")]
-    InvalidLength(#[from] InvalidLength),
+    #[error("Invalid length.")]
+    InvalidLength,
     #[error("AES error")]
     Aes,
     #[error("Invalid size")]
     Size,
+}
+
+impl From<InvalidLength> for EncryptionError {
+    fn from(_value: InvalidLength) -> Self {
+        Self::InvalidLength
+    }
 }
 
 impl From<AesError> for EncryptionError {
@@ -141,7 +143,7 @@ impl Filter for CursorKeyFilter {
     key = "String",
     convert = r##"{"get_cursor_key".to_owned()}"##
 )]
-async fn get_cursor_key(state: &Arc<AppState>) -> Result<CursorKey, Response> {
+async fn get_cursor_key(state: &AppState) -> Result<CursorKey, Response> {
     debug!("Refreshing cursor key.");
     let mut connection = state.connection_pool.begin().await.map_err(|e| {
         error!("{e}");
@@ -188,12 +190,12 @@ async fn get_cursor_key(state: &Arc<AppState>) -> Result<CursorKey, Response> {
     Ok(cursor_key)
 }
 
-impl FromRequestParts<Arc<AppState>> for CursorKey {
+impl FromRequestParts<AppState> for CursorKey {
     type Rejection = Response;
 
     async fn from_request_parts(
         _parts: &mut Parts,
-        state: &Arc<AppState>,
+        state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let cursor_key = get_cursor_key(state).await?;
         Ok(cursor_key)

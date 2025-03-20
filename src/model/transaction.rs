@@ -1,24 +1,12 @@
 use chrono::{DateTime, Utc};
 use derive_more::{From, FromStr};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{Type, prelude::FromRow};
 
 use crate::model::{Filter, account::AccountId, asset::AssetId};
 
 #[derive(
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    FromStr,
-    From,
-    Type,
-    Serialize,
-    Deserialize,
-    JsonSchema,
+    Debug, Default, Clone, Copy, PartialEq, Eq, FromStr, From, Type, Serialize, Deserialize,
 )]
 #[sqlx(transparent)]
 pub struct TransactionId(pub i64);

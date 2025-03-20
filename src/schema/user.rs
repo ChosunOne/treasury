@@ -1,13 +1,11 @@
 use std::marker::PhantomData;
 
-use aide::OperationIo;
 use axum::{
     Json,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use http::StatusCode;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -21,7 +19,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct UserResponse<T> {
     /// The user id
     pub id: UserId,
@@ -77,16 +75,15 @@ impl IntoResponse for UserResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CreateRequest {
     /// The user name
     pub name: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct GetListRequest {
     /// The name to filter on
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -94,7 +91,6 @@ pub struct GetListRequest {
     )]
     pub name: Option<String>,
     /// The email to filter on
-    #[schemars(with = "String")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -113,10 +109,9 @@ impl From<GetListRequest> for UserFilter {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UpdateRequest {
     /// The new user name
-    #[schemars(with = "String")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
@@ -130,7 +125,7 @@ impl From<UpdateRequest> for UserUpdate {
     }
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UserDeleteResponse {}
 
 impl IntoResponse for UserDeleteResponse {
@@ -139,7 +134,7 @@ impl IntoResponse for UserDeleteResponse {
     }
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema, OperationIo)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GetListResponse {
     /// The list of users
     pub users: Vec<UserResponse<GetList>>,
