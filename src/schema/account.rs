@@ -46,6 +46,12 @@ pub struct AccountResponse<T> {
     pub _phantom: PhantomData<T>,
 }
 
+impl AccountResponse<CreateResponse> {
+    pub fn status() -> StatusCode {
+        StatusCode::CREATED
+    }
+}
+
 impl<T> From<Account> for AccountResponse<T> {
     fn from(value: Account) -> Self {
         Self {
@@ -89,7 +95,7 @@ impl IntoResponse for AccountResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CreateRequest {
     /// The account name
     pub name: String,
@@ -166,6 +172,12 @@ impl From<UpdateRequest> for AccountUpdate {
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct DeleteResponse;
+
+impl DeleteResponse {
+    pub fn status() -> StatusCode {
+        StatusCode::NO_CONTENT
+    }
+}
 
 impl IntoResponse for DeleteResponse {
     fn into_response(self) -> Response {

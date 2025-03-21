@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, RequestPartsExt, Router,
+    RequestPartsExt, Router,
     body::Body,
-    extract::{FromRequestParts, Path, Query, Request, State},
+    extract::{FromRequestParts, Path, Request, State},
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
@@ -13,17 +13,20 @@ use leptos::{
     server,
     server_fn::{
         axum::server_fn_paths,
-        codec::{GetUrl, Json as LeptosJson},
+        codec::{DeleteUrl, GetUrl, Json, PatchJson},
     },
 };
-use leptos_axum::{extract, generate_request_and_parts, handle_server_fns_with_context};
+use leptos_axum::{
+    ResponseOptions, extract, extract_with_state, generate_request_and_parts,
+    handle_server_fns_with_context,
+};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::{debug, error};
 
 use crate::{
-    api::{Api, ApiError, AppState, set_user_groups},
+    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -112,15 +115,17 @@ impl FromRequestParts<AppState> for AccountApiState {
         (status = 200, description = "The list of accounts.", body = GetListResponse)
     ),
 )]
-#[server(name = AccountApiGetList, prefix="/api", endpoint="/accounts", input = GetUrl, output = LeptosJson)]
-pub async fn get_list() -> Result<GetListResponse, ApiError> {
-    use leptos_axum::extract_with_state;
+#[server(name = AccountApiGetList, prefix="/api", endpoint="/accounts", input = GetUrl, output = Json)]
+pub async fn get_list(
+    #[server(flatten)]
+    #[server(default)]
+    filter: GetListRequest,
+) -> Result<GetListResponse, ApiError> {
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<AccountApiState, _>(&state).await?;
 
     let pagination = extract_with_state::<Pagination, _>(&state).await?;
     let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
-    let Query(filter) = extract::<Query<GetListRequest>>().await?;
 
     let offset = pagination.offset();
     let accounts = api_state
@@ -140,12 +145,18 @@ pub async fn get_list() -> Result<GetListResponse, ApiError> {
         ("OpenIDConnect" = ["groups", "email"])
     ),
     responses(
-        (status = 200, description = "The account.", body = AccountGetResponse)
+        (status = 200, description = "The account.", body = AccountGetResponse),
+        (status = 404, description = "The account was not found."),
     ),
 )]
-#[server(name = AccountApiGet, prefix="/api", endpoint="accounts/", input = GetUrl, output = LeptosJson)]
+#[server(
+    name = AccountApiGet,
+    prefix="/api",
+    endpoint="accounts/",
+    input = GetUrl,
+    output = Json
+)]
 pub async fn get() -> Result<AccountGetResponse, ApiError> {
-    use leptos_axum::extract_with_state;
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<AccountApiState, _>(&state).await?;
     let Path(PathAccountId { id }) = extract().await?;
@@ -155,37 +166,111 @@ pub async fn get() -> Result<AccountGetResponse, ApiError> {
     Ok(response)
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/accounts",
+    tag = "Accounts",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = CreateRequest,
+    responses(
+        (status = 201, description = "The newly created account.", body = AccountCreateResponse)
+    ),
+)]
+#[server(
+    name = AccountApiCreate,
+    prefix="/api",
+    endpoint="accounts",
+    input = Json,
+    output = Json
+)]
 pub async fn create(
-    state: AccountApiState,
-    registered_user: RegisteredUser,
-    Json(create_request): Json<CreateRequest>,
+    #[server(flatten)] create_request: CreateRequest,
 ) -> Result<AccountCreateResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AccountApiState, _>(&state).await?;
+    let registered_user = extract_with_state::<RegisteredUser, _>(&state).await?;
     let account_create = AccountCreate {
         name: create_request.name,
         institution_id: create_request.institution_id,
         user_id: registered_user.id(),
     };
-    let account = state.account_service.create(account_create).await?;
+    let account = api_state.account_service.create(account_create).await?;
+
+    let response_opts = expect_context::<ResponseOptions>();
+    response_opts.set_status(AccountCreateResponse::status());
+    provide_context(response_opts);
     Ok(account.into())
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/accounts/{id}",
+    params(AccountId),
+    tag = "Accounts",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = UpdateRequest,
+    responses(
+        (status = 200, description = "The updated account.", body = AccountUpdateResponse),
+        (status = 404, description = "The account was not found."),
+    ),
+
+)]
+#[server(
+    name = AccountApiUpdate,
+    prefix = "/api",
+    endpoint = "accounts/",
+    input = PatchJson,
+    output = Json
+)]
 pub async fn update(
-    state: AccountApiState,
-    Path(PathAccountId { id }): Path<PathAccountId>,
-    Json(update_request): Json<UpdateRequest>,
+    #[server(flatten)] update_request: UpdateRequest,
 ) -> Result<AccountUpdateResponse, ApiError> {
-    let account = state
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AccountApiState, _>(&state).await?;
+    let Path(PathAccountId { id }) = extract().await?;
+    let account = api_state
         .account_service
         .update(id, update_request.into())
         .await?;
+
     Ok(account.into())
 }
 
-pub async fn delete(
-    Path(PathAccountId { id }): Path<PathAccountId>,
-    state: AccountApiState,
-) -> Result<DeleteResponse, ApiError> {
-    state.account_service.delete(id).await?;
+#[utoipa::path(
+    delete,
+    path = "/api/accounts/{id}",
+    params(AccountId),
+    tag = "Accounts",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 204, description = "The account was successfully deleted."),
+        (status = 404, description = "The account was not found.", body = ApiErrorResponse, content_type="application/json", example = json!(ApiErrorResponse {
+            code: 4040,
+            message: "Not found.".to_string()
+        })),
+    ),
+)]
+#[server(
+    name = AccountApiDelete,
+    prefix = "/api",
+    endpoint = "accounts/",
+    input = DeleteUrl
+)]
+pub async fn delete() -> Result<DeleteResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AccountApiState, _>(&state).await?;
+    let Path(PathAccountId { id }) = extract().await?;
+    api_state.account_service.delete(id).await?;
+
+    let response_opts = expect_context::<ResponseOptions>();
+    response_opts.set_status(DeleteResponse::status());
+    provide_context(response_opts);
     Ok(DeleteResponse {})
 }
 
@@ -214,6 +299,8 @@ pub struct AccountApi;
 
 impl Api for AccountApi {
     fn router(state: AppState) -> Router<AppState> {
+        let server_fn_paths = server_fn_paths().collect::<Vec<_>>();
+        debug!("{server_fn_paths:#?}");
         Router::new()
             .route(
                 "/",

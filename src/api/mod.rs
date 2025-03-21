@@ -12,7 +12,7 @@ use axum::{
 };
 use casbin::Enforcer;
 use docs_api::DocsApi;
-use http::{Method, StatusCode};
+use http::{HeaderName, HeaderValue, Method, StatusCode, header::CONTENT_TYPE};
 use leptos::{
     prelude::*,
     server_fn::{
@@ -20,7 +20,7 @@ use leptos::{
         error::{FromServerFnError, ServerFnErrorErr},
     },
 };
-use leptos_axum::AxumRouteListing;
+use leptos_axum::{AxumRouteListing, ResponseOptions};
 use leptos_router::{Method as LeptosMethod, SsrMode};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::PgPool;
@@ -31,7 +31,7 @@ use tower_http::{
 };
 use tracing::error;
 use user_api::UserApi;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
@@ -241,7 +241,7 @@ impl FromServerFnError for ApiError {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ApiErrorResponse {
     code: usize,
     message: String,
@@ -256,7 +256,7 @@ const INTERNAL_SERVER_ERROR: usize = 5000;
 
 impl From<&ApiError> for ApiErrorResponse {
     fn from(value: &ApiError) -> Self {
-        match value {
+        let response = match value {
             ApiError::JsonRejection => Self {
                 code: JSON_REJECTION,
                 message: "Invalid JSON in request.".into(),
@@ -301,7 +301,15 @@ impl From<&ApiError> for ApiErrorResponse {
                     message: "Internal server error.".into(),
                 }
             }
-        }
+        };
+        let response_opts = expect_context::<ResponseOptions>();
+        response_opts.set_status(value.status());
+        response_opts.insert_header(
+            CONTENT_TYPE,
+            HeaderValue::from_str("application/json").unwrap(),
+        );
+        provide_context(response_opts);
+        response
     }
 }
 
