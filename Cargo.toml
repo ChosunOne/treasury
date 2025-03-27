@@ -44,8 +44,8 @@ utoipauto = {version = "^0.3.0-alpha.2", optional = true}
 utoipa-swagger-ui = {version = "^9.0.0", features = ["axum", "debug", "cache"], optional = true}
 uuid = {version = "^1.16.0", features = ["v4", "serde"], optional = true}
 wasm-bindgen = {version = "^0.2.100", optional = true}
-zerocopy = {version = "^0.8.23", features = ["std", "simd"], optional = true}
-zerocopy-derive = {version = "^0.8.23", optional = true}
+zerocopy = {version = "^0.8.24", features = ["std", "simd"], optional = true}
+zerocopy-derive = {version = "^0.8.24", optional = true}
 
 [dev-dependencies]
 http-body-util = {version = "^0.1.3"}

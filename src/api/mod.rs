@@ -12,7 +12,7 @@ use axum::{
 };
 use casbin::Enforcer;
 use docs_api::DocsApi;
-use http::{HeaderName, HeaderValue, Method, StatusCode, header::CONTENT_TYPE};
+use http::{HeaderValue, Method, StatusCode, header::CONTENT_TYPE};
 use leptos::{
     prelude::*,
     server_fn::{
@@ -224,6 +224,12 @@ impl From<ServerFnError> for ApiError {
                 Self::ServerError
             }
         }
+    }
+}
+
+impl From<ServerFnErrorErr> for ApiError {
+    fn from(value: ServerFnErrorErr) -> Self {
+        Self::from_server_fn_error(value)
     }
 }
 
