@@ -44,6 +44,12 @@ pub struct AssetResponse<T> {
     pub _phantom: PhantomData<T>,
 }
 
+impl AssetResponse<CreateResponse> {
+    pub fn status() -> StatusCode {
+        StatusCode::CREATED
+    }
+}
+
 impl<T> From<Asset> for AssetResponse<T> {
     fn from(value: Asset) -> Self {
         Self {

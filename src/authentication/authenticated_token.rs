@@ -1,9 +1,8 @@
-use axum::{
-    extract::FromRequestParts,
-    response::{IntoResponse, Response},
-};
-use http::{StatusCode, request::Parts};
+use axum::extract::FromRequestParts;
+use http::request::Parts;
 use serde::Deserialize;
+
+use crate::{api::ApiError, service::ServiceError};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Claims {
@@ -61,18 +60,14 @@ impl AuthenticatedToken {
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for AuthenticatedToken {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let authenticated_token = parts
             .extensions
             .get::<AuthenticatedToken>()
             .cloned()
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                "User not authenticated".to_owned(),
-            ))
-            .map_err(|err| err.into_response())?;
+            .ok_or(ApiError::Service(ServiceError::Unauthorized))?;
         Ok(authenticated_token)
     }
 }

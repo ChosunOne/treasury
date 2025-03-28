@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use axum::{
     RequestPartsExt,
     extract::{FromRequestParts, Query},
-    response::{IntoResponse, Response},
 };
 use base64::{
     Engine,
@@ -12,7 +11,7 @@ use base64::{
 };
 use cached::proc_macro::cached;
 use chrono::{DateTime, Utc};
-use http::{StatusCode, request::Parts};
+use http::request::Parts;
 use serde::{Deserialize, Deserializer, Serializer};
 use tracing::{debug, error};
 use utoipa::{IntoParams, ToSchema};
@@ -20,7 +19,7 @@ use zerocopy::FromBytes;
 use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
 
 use crate::{
-    api::AppState,
+    api::{ApiError, AppState},
     model::cursor_key::{CursorKey, CursorKeyId, EncryptionError},
     resource::{GetRepository, RepositoryError, cursor_key_repository::CursorKeyRepository},
 };
@@ -97,23 +96,21 @@ pub struct Cursor {
 async fn get_cursor_key(
     state: &AppState,
     cursor_key_id: CursorKeyId,
-) -> Result<CursorKey, Response> {
+) -> Result<CursorKey, ApiError> {
     debug!("Refreshing cursor key");
     let cursor_key_repository = CursorKeyRepository {};
     let transaction = state.connection_pool.begin().await.map_err(|e| {
         error!("{e}");
-        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+        ApiError::ServerError
     })?;
     let cursor_key = cursor_key_repository
         .get(transaction, cursor_key_id)
         .await
         .map_err(|e| match e {
-            RepositoryError::NotFound => {
-                (StatusCode::BAD_REQUEST, "Invalid cursor.").into_response()
-            }
+            RepositoryError::NotFound => ApiError::ClientError("Invalid cursor.".to_owned()),
             RepositoryError::Sqlx(e) => {
                 error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+                ApiError::ServerError
             }
         })?;
     Ok(cursor_key)
@@ -122,7 +119,7 @@ async fn get_cursor_key(
 // We need to make sure the cursor is opaque so that clients don't
 // rely on the implementation details.
 impl FromRequestParts<AppState> for Pagination {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -132,16 +129,14 @@ impl FromRequestParts<AppState> for Pagination {
             .extract::<Query<HashMap<String, String>>>()
             .await
             .map(|Query(params)| params)
-            .map_err(|err| err.into_response())?;
+            .map_err(|err| ApiError::ClientError(format!("{err:?}")))?;
 
         let max_items = if let Some(max_items) = query_params.get("max_items") {
-            Some(max_items.parse::<i64>().map_err(|_| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    "Could not deserialize `max_items` into a number.",
-                )
-                    .into_response()
-            })?)
+            Some(
+                max_items
+                    .parse::<i64>()
+                    .map_err(|_| ApiError::ClientError("Could not parse max items.".to_owned()))?,
+            )
         } else {
             None
         };
@@ -149,18 +144,18 @@ impl FromRequestParts<AppState> for Pagination {
             let engine = GeneralPurpose::new(&URL_SAFE, general_purpose::NO_PAD);
             let cursor_bytes = engine
                 .decode(c)
-                .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid cursor.").into_response())?;
+                .map_err(|_| ApiError::ClientError("Invalid cursor.".to_owned()))?;
             if cursor_bytes.len() < 16 {
-                return Err((StatusCode::BAD_REQUEST, "Invalid cursor.").into_response());
+                return Err(ApiError::ClientError("Invalid cursor.".to_owned()));
             }
 
             let cursor_key_id_bytes = &cursor_bytes[0..4];
             let cursor_key_id = CursorKeyId::read_from_bytes(cursor_key_id_bytes)
-                .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid cursor.").into_response())?;
+                .map_err(|_| ApiError::ClientError("Invalid cursor.".to_owned()))?;
             let cursor_key = get_cursor_key(state, cursor_key_id).await?;
             let cursor = cursor_key
                 .decrypt(&cursor_bytes)
-                .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid cursor.").into_response())?;
+                .map_err(|_| ApiError::ClientError("Invalid cursor.".to_owned()))?;
 
             Some(cursor)
         } else {

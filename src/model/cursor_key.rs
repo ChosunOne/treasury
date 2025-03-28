@@ -1,8 +1,5 @@
 use aes_gcm_siv::{Aes256GcmSiv, Error as AesError, KeyInit, Nonce, aead::Aead};
-use axum::{
-    extract::FromRequestParts,
-    response::{IntoResponse, Response},
-};
+use axum::extract::FromRequestParts;
 use base64::{
     Engine,
     alphabet::URL_SAFE,
@@ -12,7 +9,7 @@ use cached::proc_macro::cached;
 use chrono::{DateTime, Days, Utc};
 use crypto_common::InvalidLength;
 use derive_more::{Display, From, FromStr};
-use http::{StatusCode, request::Parts};
+use http::request::Parts;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sqlx::{Acquire, FromRow, Type};
@@ -22,7 +19,7 @@ use zerocopy::{FromBytes, IntoBytes, SizeError};
 use zerocopy_derive::{FromBytes, Immutable, IntoBytes};
 
 use crate::{
-    api::AppState,
+    api::{ApiError, AppState},
     model::Filter,
     resource::{CreateRepository, GetListRepository, cursor_key_repository::CursorKeyRepository},
     schema::Cursor,
@@ -143,16 +140,16 @@ impl Filter for CursorKeyFilter {
     key = "String",
     convert = r##"{"get_cursor_key".to_owned()}"##
 )]
-async fn get_cursor_key(state: &AppState) -> Result<CursorKey, Response> {
+async fn get_cursor_key(state: &AppState) -> Result<CursorKey, ApiError> {
     debug!("Refreshing cursor key.");
     let mut connection = state.connection_pool.begin().await.map_err(|e| {
         error!("{e}");
-        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+        ApiError::ServerError
     })?;
 
     let session = connection.begin().await.map_err(|e| {
         error!("{e}");
-        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+        ApiError::ServerError
     })?;
 
     let cursor_key_repository = CursorKeyRepository {};
@@ -164,14 +161,14 @@ async fn get_cursor_key(state: &AppState) -> Result<CursorKey, Response> {
         .await
         .map_err(|e| {
             error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            ApiError::ServerError
         })?;
     let cursor_key = if let Some(k) = cursor_keys.pop() {
         k
     } else {
         let session = connection.begin().await.map_err(|e| {
             error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            ApiError::ServerError
         })?;
 
         cursor_key_repository
@@ -184,14 +181,14 @@ async fn get_cursor_key(state: &AppState) -> Result<CursorKey, Response> {
             .await
             .map_err(|e| {
                 error!("{e}");
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+                ApiError::ServerError
             })?
     };
     Ok(cursor_key)
 }
 
 impl FromRequestParts<AppState> for CursorKey {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(
         _parts: &mut Parts,

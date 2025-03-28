@@ -5,24 +5,22 @@ use axum::{
     body::Body,
     extract::{FromRequestParts, Path, Request, State},
     middleware::from_fn_with_state,
-    response::{IntoResponse, Response},
+    response::IntoResponse,
 };
-use http::{StatusCode, request::Parts};
+use http::request::Parts;
 use leptos::{
     prelude::{expect_context, provide_context},
     server,
     server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
 };
-use leptos_axum::{
-    extract, extract_with_state, generate_request_and_parts, handle_server_fns_with_context,
-};
+use leptos_axum::{extract, generate_request_and_parts, handle_server_fns_with_context};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
+    api::{Api, ApiError, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -57,7 +55,7 @@ pub struct TransactionApiState {
 }
 
 impl FromRequestParts<AppState> for TransactionApiState {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -82,7 +80,7 @@ impl FromRequestParts<AppState> for TransactionApiState {
         )
         .map_err(|e| {
             error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            ApiError::ServerError
         })?;
         let transaction_service = TransactionServiceFactory::build(
             registered_user,

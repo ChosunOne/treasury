@@ -7,6 +7,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     model::{
@@ -19,7 +20,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UserResponse<T> {
     /// The user id
     pub id: UserId,
@@ -42,6 +43,12 @@ pub struct UserResponse<T> {
 
     #[serde(skip)]
     pub _phantom: PhantomData<T>,
+}
+
+impl UserResponse<CreateResponse> {
+    pub fn status() -> StatusCode {
+        StatusCode::CREATED
+    }
 }
 
 impl<T> From<User> for UserResponse<T> {
@@ -75,13 +82,14 @@ impl IntoResponse for UserResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CreateRequest {
     /// The user name
     pub name: String,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetListRequest {
     /// The name to filter on
     #[serde(
@@ -109,7 +117,7 @@ impl From<GetListRequest> for UserFilter {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UpdateRequest {
     /// The new user name
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -125,8 +133,14 @@ impl From<UpdateRequest> for UserUpdate {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UserDeleteResponse {}
+
+impl UserDeleteResponse {
+    pub fn status() -> StatusCode {
+        StatusCode::NO_CONTENT
+    }
+}
 
 impl IntoResponse for UserDeleteResponse {
     fn into_response(self) -> Response {
@@ -134,7 +148,7 @@ impl IntoResponse for UserDeleteResponse {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GetListResponse {
     /// The list of users
     pub users: Vec<UserResponse<GetList>>,

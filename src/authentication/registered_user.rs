@@ -1,15 +1,13 @@
-use axum::{
-    extract::{FromRequestParts, OptionalFromRequestParts},
-    response::{IntoResponse, Response},
-};
-use http::{StatusCode, request::Parts};
+use axum::extract::{FromRequestParts, OptionalFromRequestParts};
+use http::request::Parts;
 use tracing::error;
 
 use crate::{
-    api::AppState,
+    api::{ApiError, AppState},
     authentication::authenticated_token::AuthenticatedToken,
     model::user::{User, UserFilter, UserId},
     resource::{GetListRepository, user_repository::UserRepository},
+    service::ServiceError,
 };
 
 #[derive(Debug, Clone)]
@@ -28,7 +26,7 @@ impl RegisteredUser {
 }
 
 impl FromRequestParts<AppState> for RegisteredUser {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -38,18 +36,14 @@ impl FromRequestParts<AppState> for RegisteredUser {
             .extensions
             .get::<AuthenticatedToken>()
             .cloned()
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                "User not authenticated".to_owned(),
-            ))
-            .map_err(|err| err.into_response())?;
+            .ok_or(ApiError::Service(ServiceError::Unauthorized))?;
 
         let user_repository = UserRepository {};
         let user = user_repository
             .get_list(
                 state.connection_pool.begin().await.map_err(|e| {
                     error!("{e}");
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+                    ApiError::ServerError
                 })?,
                 0,
                 1.into(),
@@ -63,7 +57,7 @@ impl FromRequestParts<AppState> for RegisteredUser {
             .ok()
             .unwrap_or(vec![])
             .pop()
-            .ok_or((StatusCode::FORBIDDEN, "Forbidden.").into_response())?;
+            .ok_or(ApiError::Service(ServiceError::Unauthorized))?;
 
         let registered_user = RegisteredUser::new(user);
         Ok(registered_user)
@@ -71,7 +65,7 @@ impl FromRequestParts<AppState> for RegisteredUser {
 }
 
 impl OptionalFromRequestParts<AppState> for RegisteredUser {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -81,18 +75,14 @@ impl OptionalFromRequestParts<AppState> for RegisteredUser {
             .extensions
             .get::<AuthenticatedToken>()
             .cloned()
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                "User not authenticated".to_owned(),
-            ))
-            .map_err(|err| err.into_response())?;
+            .ok_or(ApiError::Service(ServiceError::Unauthorized))?;
 
         let user_repository = UserRepository {};
         let registered_user = user_repository
             .get_list(
                 state.connection_pool.begin().await.map_err(|e| {
                     error!("{e}");
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+                    ApiError::ServerError
                 })?,
                 0,
                 1.into(),

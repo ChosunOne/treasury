@@ -5,17 +5,16 @@ use axum::{
     body::Body,
     extract::{FromRequestParts, Path, Request, State},
     middleware::from_fn_with_state,
-    response::{IntoResponse, Response},
+    response::IntoResponse,
 };
-use http::{StatusCode, request::Parts};
+use http::request::Parts;
 use leptos::{
     prelude::*,
     server,
     server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
 };
 use leptos_axum::{
-    ResponseOptions, extract, extract_with_state, generate_request_and_parts,
-    handle_server_fns_with_context,
+    ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
 };
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
@@ -23,7 +22,7 @@ use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
+    api::{Api, ApiError, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -59,7 +58,7 @@ pub struct AccountApiState {
 }
 
 impl FromRequestParts<AppState> for AccountApiState {
-    type Rejection = Response;
+    type Rejection = ApiError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -84,7 +83,7 @@ impl FromRequestParts<AppState> for AccountApiState {
         )
         .map_err(|e| {
             error!("{e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error.").into_response()
+            ApiError::ServerError
         })?;
 
         let account_service = AccountServiceFactory::build(
@@ -130,7 +129,7 @@ pub async fn get_list(
     let pagination = extract_with_state::<Pagination, _>(&state).await?;
     let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
 
-    let offset = pagination.offset();
+    let offset = dbg!(pagination.offset());
     let accounts = api_state
         .account_service
         .get_list(offset, pagination.max_items, filter.into())

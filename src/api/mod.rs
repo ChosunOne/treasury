@@ -6,13 +6,13 @@ use std::{
 
 use axum::{
     Json, Router,
-    extract::{FromRef, FromRequest, Request},
+    extract::{FromRef, FromRequest, FromRequestParts, Request},
     middleware::Next,
     response::{IntoResponse, Response},
 };
 use casbin::Enforcer;
 use docs_api::DocsApi;
-use http::{HeaderValue, Method, StatusCode, header::CONTENT_TYPE};
+use http::{HeaderValue, Method, StatusCode, header::CONTENT_TYPE, request::Parts};
 use leptos::{
     prelude::*,
     server_fn::{
@@ -215,7 +215,7 @@ impl<'de> Deserialize<'de> for ApiError {
 
 impl From<ServerFnError> for ApiError {
     fn from(value: ServerFnError) -> Self {
-        match value {
+        match dbg!(value) {
             ServerFnError::Request(e) => Self::ClientError(e),
             ServerFnError::Deserialization(e) => Self::ClientError(e),
             ServerFnError::Serialization(e) => Self::ClientError(e),
@@ -333,6 +333,16 @@ impl IntoRes<ApiJson<ApiErrorResponse>, Response, ()> for ApiError {
     }
 }
 
+/// Helper function to deal with leptos context but preserve our own
+/// error types
+pub async fn extract_with_state<T, S>(state: &S) -> Result<T, T::Rejection>
+where
+    T: Sized + FromRequestParts<S>,
+{
+    let mut parts = expect_context::<Parts>();
+    T::from_request_parts(&mut parts, state).await
+}
+
 #[cfg(test)]
 mod test {
     use std::env::var;
@@ -378,7 +388,7 @@ mod test {
             .header("Authorization", auth_token)
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
-            .uri("/users")
+            .uri("/api/users")
             .body(Body::from(serde_json::to_vec(create_request).unwrap()))
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
@@ -401,7 +411,7 @@ mod test {
             .method("GET")
             .header("Authorization", auth_token)
             .header("Accept", "application/json")
-            .uri(format!("/users/{id}"))
+            .uri(format!("/api/users/{id}"))
             .body(Body::default())
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
@@ -426,7 +436,7 @@ mod test {
             .header("Authorization", auth_token)
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
-            .uri(format!("/users/{id}"))
+            .uri(format!("/api/users/{id}"))
             .body(Body::from(serde_json::to_vec(update_user).unwrap()))
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
@@ -449,7 +459,7 @@ mod test {
             .method("DELETE")
             .header("Authorization", auth_token)
             .header("Accept", "application/json")
-            .uri(format!("/users/{id}"))
+            .uri(format!("/api/users/{id}"))
             .body(Body::default())
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
@@ -474,7 +484,7 @@ mod test {
             .header("Accept", "application/json")
             .uri(
                 Uri::builder()
-                    .path_and_query(format!("/institutions?name={name}"))
+                    .path_and_query(format!("/api/institutions?name={name}"))
                     .build()
                     .unwrap(),
             )
@@ -505,7 +515,7 @@ mod test {
             .header("Authorization", auth_token)
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
-            .uri("/accounts")
+            .uri("/api/accounts")
             .body(Body::from(serde_json::to_vec(create_request).unwrap()))
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
@@ -527,7 +537,7 @@ mod test {
             .method("GET")
             .header("Authorization", auth_token)
             .header("Accept", "application/json")
-            .uri("/accounts")
+            .uri("/api/accounts")
             .body(Body::default())
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(api)
@@ -629,9 +639,9 @@ mod test {
     }
 
     #[rstest]
-    #[case("/users")]
-    #[case("/accounts")]
-    #[case("/institutions")]
+    #[case("/api/users")]
+    #[case("/api/accounts")]
+    #[case("/api/institutions")]
     #[awt]
     #[sqlx::test]
     async fn it_rejects_an_unauthorized_request(
@@ -654,9 +664,9 @@ mod test {
     }
 
     #[rstest]
-    #[case("/users")]
-    #[case("/accounts")]
-    #[case("/institutions")]
+    #[case("/api/users")]
+    #[case("/api/accounts")]
+    #[case("/api/institutions")]
     #[awt]
     #[sqlx::test]
     async fn it_rejects_insufficient_permissions(
@@ -670,7 +680,7 @@ mod test {
             .method("GET")
             .header("Authorization", user_auth_token)
             .header("Accept", "application/json")
-            .uri(endpoint)
+            .uri(dbg!(endpoint))
             .body(Body::empty())
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(&mut api)
@@ -679,7 +689,8 @@ mod test {
             .call(request)
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        let status = response.status();
+        assert_eq!(status, StatusCode::FORBIDDEN);
     }
 
     #[rstest]
