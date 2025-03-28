@@ -11,10 +11,7 @@ use http::{StatusCode, request::Parts};
 use leptos::{
     prelude::*,
     server,
-    server_fn::{
-        axum::server_fn_paths,
-        codec::{DeleteUrl, GetUrl, Json, PatchJson},
-    },
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
 };
 use leptos_axum::{
     ResponseOptions, extract, extract_with_state, generate_request_and_parts,
@@ -23,7 +20,7 @@ use leptos_axum::{
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::{
     api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
@@ -115,7 +112,13 @@ impl FromRequestParts<AppState> for AccountApiState {
         (status = 200, description = "The list of accounts.", body = GetListResponse)
     ),
 )]
-#[server(name = AccountApiGetList, prefix = "/api", endpoint = "/accounts", input = GetUrl, output = Json)]
+#[server(
+    name = AccountApiGetList,
+    prefix = "/api",
+    endpoint = "/accounts",
+    input = GetUrl,
+    output = Json
+)]
 pub async fn get_list(
     #[server(flatten)]
     #[server(default)]
@@ -223,7 +226,7 @@ pub async fn create(
     prefix = "/api",
     endpoint = "accounts/",
     input = PatchJson,
-    output = Json
+    output = PatchJson
 )]
 pub async fn update(
     #[server(flatten)] update_request: UpdateRequest,

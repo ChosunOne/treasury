@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use derive_more::{From, FromStr};
 use serde::{Deserialize, Serialize};
 use sqlx::{Type, prelude::FromRow};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::model::Filter;
@@ -20,7 +20,9 @@ use crate::model::Filter;
     Serialize,
     Deserialize,
     ToSchema,
+    IntoParams,
 )]
+#[into_params(names("id"))]
 #[sqlx(transparent)]
 pub struct InstitutionId(pub Uuid);
 

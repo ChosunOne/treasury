@@ -7,6 +7,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     model::{
@@ -21,7 +22,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq, ToSchema)]
 pub struct InstitutionResponse<T> {
     pub id: InstitutionId,
     #[serde(
@@ -70,7 +71,7 @@ impl IntoResponse for InstitutionResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CreateRequest {
     pub name: String,
 }
@@ -81,7 +82,8 @@ impl From<CreateRequest> for InstitutionCreate {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetListRequest {
     /// The name to filter on
     #[serde(
@@ -98,7 +100,7 @@ impl From<GetListRequest> for InstitutionFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GetListResponse {
     /// The list of institutions
     pub institutions: Vec<InstitutionResponse<GetList>>,
@@ -135,7 +137,7 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UpdateRequest {
     /// The new institution name
     #[serde(default, skip_serializing_if = "Option::is_none")]

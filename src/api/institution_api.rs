@@ -1,22 +1,28 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, RequestPartsExt, Router,
-    extract::{FromRequestParts, Path, Query},
+    RequestPartsExt, Router,
+    body::Body,
+    extract::{FromRequestParts, Path, Request, State},
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
 use http::{StatusCode, request::Parts};
-use leptos::prelude::provide_context;
-use leptos_axum::LeptosRoutes;
+use leptos::{
+    prelude::{expect_context, provide_context},
+    server,
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
+};
+use leptos_axum::{
+    extract, extract_with_state, generate_request_and_parts, handle_server_fns_with_context,
+};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, AppState, set_user_groups},
-    app::App,
+    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
     authorization::{
         PermissionConfig, PermissionSet,
@@ -83,14 +89,38 @@ impl FromRequestParts<AppState> for InstitutionApiState {
         })
     }
 }
+
+#[utoipa::path(
+    get,
+    path = "/api/institutions",
+    tag = "Institutions",
+    params(GetListRequest, Pagination),
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 200, description = "The list of institutions.", body = InstitutionGetListResponse)
+    ),
+)]
+#[server(
+    name = InstitutionApiGetList,
+    prefix = "/api",
+    endpoint = "/institutions",
+    input = GetUrl,
+    output = Json
+)]
 async fn get_list(
-    state: InstitutionApiState,
-    pagination: Pagination,
-    cursor_key: CursorKey,
-    Query(filter): Query<GetListRequest>,
+    #[server(flatten)]
+    #[server(default)]
+    filter: GetListRequest,
 ) -> Result<InstitutionGetListResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<InstitutionApiState, _>(&state).await?;
+    let pagination = extract_with_state::<Pagination, _>(&state).await?;
+    let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
+
     let offset = pagination.offset();
-    let institutions = state
+    let institutions = api_state
         .institution_service
         .get_list(offset, pagination.max_items, filter.into())
         .await?;
@@ -98,44 +128,153 @@ async fn get_list(
     Ok(response)
 }
 
-async fn get(
-    Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-    state: InstitutionApiState,
-) -> Result<InstitutionGetResponse, ApiError> {
-    let institution = state.institution_service.get(id).await?;
+#[utoipa::path(
+    get,
+    path = "/api/institutions/{id}",
+    tag = "Institutions",
+    params(InstitutionId),
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 200, description = "The institution.", body = InstitutionGetResponse),
+        (status = 404, description = "The institution was not found."),
+    )
+)]
+#[server(
+    name = InstitutionApiGet,
+    prefix = "/api",
+    endpoint = "institutions/",
+    input = GetUrl,
+    output = Json,
+)]
+async fn get() -> Result<InstitutionGetResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<InstitutionApiState, _>(&state).await?;
+    let Path(PathInstitutionId { id }) = extract().await?;
+
+    let institution = api_state.institution_service.get(id).await?;
     let response = institution.into();
     Ok(response)
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/institutions",
+    tag = "Institutions",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = CreateRequest,
+    responses(
+        (status = 201, description = "The newly created institution.", body = InstitutionCreateResponse)
+    ),
+)]
+#[server(
+    name = InstitutionApiCreate,
+    prefix = "/api",
+    endpoint = "institutions",
+    input = Json,
+    output = Json
+)]
 async fn create(
-    state: InstitutionApiState,
-    Json(create_request): Json<CreateRequest>,
+    #[server(flatten)] create_request: CreateRequest,
 ) -> Result<InstitutionCreateResponse, ApiError> {
-    let institution = state
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<InstitutionApiState, _>(&state).await?;
+
+    let institution = api_state
         .institution_service
         .create(create_request.into())
         .await?;
     Ok(institution.into())
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/institutions/{id}",
+    params(InstitutionId),
+    tag = "Institutions",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = UpdateRequest,
+    responses(
+        (status = 200, description = "The updated instiution.", body = InstitutionUpdateResponse),
+        (status = 404, description = "The institution was not found.")
+    )
+)]
+#[server(
+    name = InstitutionApiUpdate,
+    prefix = "/api",
+    endpoint = "institutions/",
+    input = PatchJson,
+    output = PatchJson,
+)]
 async fn update(
-    state: InstitutionApiState,
-    Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-    Json(update_request): Json<UpdateRequest>,
+    #[server(flatten)] update_request: UpdateRequest,
 ) -> Result<InstitutionUpdateResponse, ApiError> {
-    let institution = state
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<InstitutionApiState, _>(&state).await?;
+    let Path(PathInstitutionId { id }) = extract().await?;
+
+    let institution = api_state
         .institution_service
         .update(id, update_request.into())
         .await?;
     Ok(institution.into())
 }
 
-async fn delete(
-    Path(PathInstitutionId { id }): Path<PathInstitutionId>,
-    state: InstitutionApiState,
-) -> Result<DeleteResponse, ApiError> {
-    state.institution_service.delete(id).await?;
+#[utoipa::path(
+    delete,
+    path = "/api/institutions/{id}",
+    params(InstitutionId),
+    tag = "Institutions",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 204, description = "The institution was successfully deleted."),
+        (status = 404, description = "The institution was not found.", body = ApiErrorResponse, content_type = "application/json", example = json!(ApiErrorResponse {
+            code: 4040,
+            message: "Not found.".to_string()
+        })),
+    ),
+)]
+#[server(
+    name = InstitutionApiDelete,
+    prefix = "/api",
+    endpoint = "institutions/",
+    input = DeleteUrl
+)]
+async fn delete() -> Result<DeleteResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<InstitutionApiState, _>(&state).await?;
+
+    let Path(PathInstitutionId { id }) = extract().await?;
+    api_state.institution_service.delete(id).await?;
     Ok(DeleteResponse {})
+}
+
+async fn server_fn_handler(State(state): State<AppState>, req: Request<Body>) -> impl IntoResponse {
+    let path = match req.uri().to_string() {
+        val if val == "/" => "".to_string(),
+        val if val.starts_with("/?") => val.trim_start_matches("/").to_string(),
+        _ => "/".to_string(),
+    };
+    let (mut req, parts) = generate_request_and_parts(req);
+    *req.uri_mut() = format!("/api/institutions{path}").parse().unwrap();
+    handle_server_fns_with_context(
+        {
+            let app_state = state.clone();
+            move || {
+                provide_context(app_state.clone());
+                provide_context(parts.clone());
+            }
+        },
+        req,
+    )
+    .await
 }
 
 pub struct InstitutionApi;
@@ -143,14 +282,15 @@ pub struct InstitutionApi;
 impl Api for InstitutionApi {
     fn router(state: AppState) -> Router<AppState> {
         Router::new()
-            .leptos_routes_with_context(
-                &state,
-                Self::routes(leptos_router::SsrMode::OutOfOrder),
-                {
-                    let app_state = state.clone();
-                    move || provide_context(app_state.clone())
-                },
-                App,
+            .route(
+                "/",
+                axum::routing::get(server_fn_handler).post(server_fn_handler),
+            )
+            .route(
+                "/{id}",
+                axum::routing::get(server_fn_handler)
+                    .patch(server_fn_handler)
+                    .delete(server_fn_handler),
             )
             .layer(
                 ServiceBuilder::new()
