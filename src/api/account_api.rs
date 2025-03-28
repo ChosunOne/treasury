@@ -129,7 +129,7 @@ pub async fn get_list(
     let pagination = extract_with_state::<Pagination, _>(&state).await?;
     let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
 
-    let offset = dbg!(pagination.offset());
+    let offset = pagination.offset();
     let accounts = api_state
         .account_service
         .get_list(offset, pagination.max_items, filter.into())

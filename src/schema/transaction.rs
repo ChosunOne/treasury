@@ -4,6 +4,8 @@ use axum::{
     Json,
     response::{IntoResponse, Response},
 };
+#[cfg(test)]
+use chrono::SubsecRound;
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -52,6 +54,12 @@ pub struct TransactionResponse<T> {
     pub _phantom: PhantomData<T>,
 }
 
+impl TransactionResponse<CreateResponse> {
+    pub fn status() -> StatusCode {
+        StatusCode::CREATED
+    }
+}
+
 impl<T> From<Transaction> for TransactionResponse<T> {
     fn from(value: Transaction) -> Self {
         Self {
@@ -97,6 +105,17 @@ pub struct CreateRequest {
     pub account_id: AccountId,
     pub asset_id: AssetId,
     pub quantity: i64,
+}
+
+#[cfg(test)]
+impl<T> PartialEq<TransactionResponse<T>> for CreateRequest {
+    fn eq(&self, other: &TransactionResponse<T>) -> bool {
+        self.description == other.description
+            && self.posted_at.round_subsecs(3) == other.posted_at.round_subsecs(3)
+            && self.account_id == other.account_id
+            && self.asset_id == other.asset_id
+            && self.quantity == other.quantity
+    }
 }
 
 impl From<CreateRequest> for TransactionCreate {
@@ -234,6 +253,12 @@ impl From<UpdateRequest> for TransactionUpdate {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DeleteResponse;
+
+impl DeleteResponse {
+    pub fn status() -> StatusCode {
+        StatusCode::NO_CONTENT
+    }
+}
 
 impl IntoResponse for DeleteResponse {
     fn into_response(self) -> Response {

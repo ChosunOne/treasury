@@ -13,7 +13,9 @@ use leptos::{
     server,
     server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
 };
-use leptos_axum::{extract, generate_request_and_parts, handle_server_fns_with_context};
+use leptos_axum::{
+    ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
+};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
@@ -191,7 +193,9 @@ async fn create(
         .transaction_service
         .create(create_request.into())
         .await?;
-
+    let response_opts = expect_context::<ResponseOptions>();
+    response_opts.set_status(TransactionCreateResponse::status());
+    provide_context(response_opts);
     Ok(transaction.into())
 }
 
@@ -256,6 +260,9 @@ async fn delete() -> Result<DeleteResponse, ApiError> {
     let Path(PathTransactionId { id }) = extract().await?;
 
     api_state.transaction_service.delete(id).await?;
+    let response_opts = expect_context::<ResponseOptions>();
+    response_opts.set_status(DeleteResponse::status());
+    provide_context(response_opts);
     Ok(DeleteResponse {})
 }
 

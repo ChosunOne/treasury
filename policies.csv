@@ -5,4 +5,7 @@ p, user, accounts, update
 p, user, accounts, delete
 p, user, users, update
 p, user, users, delete
+p, user, transactions, create
+p, user, transactions, update
+p, user, transactions, delete
 p, admin, *, *

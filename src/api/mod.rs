@@ -215,7 +215,7 @@ impl<'de> Deserialize<'de> for ApiError {
 
 impl From<ServerFnError> for ApiError {
     fn from(value: ServerFnError) -> Self {
-        match dbg!(value) {
+        match value {
             ServerFnError::Request(e) => Self::ClientError(e),
             ServerFnError::Deserialization(e) => Self::ClientError(e),
             ServerFnError::Serialization(e) => Self::ClientError(e),
@@ -349,6 +349,7 @@ mod test {
 
     use axum::{body::Body, routing::RouterIntoService};
     use casbin::{CoreApi, Enforcer};
+    use chrono::Utc;
     use http::Uri;
     use http_body_util::BodyExt;
     use reqwest::Client;
@@ -368,7 +369,9 @@ mod test {
                 AccountCreateResponse, CreateRequest as AccountCreateRequest,
                 GetListResponse as AccountGetListResponse,
             },
+            asset::{AssetGetListResponse, AssetResponse},
             institution::{InstitutionGetListResponse, InstitutionResponse},
+            transaction::{CreateRequest as TransactionCreateRequest, TransactionCreateResponse},
             user::{
                 CreateRequest as UserCreateRequest, UpdateRequest as UserUpdateRequest,
                 UserCreateResponse, UserDeleteResponse, UserGetResponse, UserUpdateResponse,
@@ -551,6 +554,57 @@ mod test {
         serde_json::from_slice::<AccountGetListResponse>(&body).unwrap()
     }
 
+    async fn get_asset_by_symbol(
+        auth_token: &str,
+        api: &mut RouterIntoService<Body>,
+        symbol: &str,
+    ) -> AssetResponse<GetList> {
+        let request = Request::builder()
+            .method("GET")
+            .header("Authorization", auth_token)
+            .header("Accept", "application/json")
+            .uri(format!("/api/assets?symbol={symbol}"))
+            .body(Body::default())
+            .unwrap();
+        let response = ServiceExt::<Request<Body>>::ready(api)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice::<AssetGetListResponse>(&body)
+            .unwrap()
+            .assets
+            .pop()
+            .unwrap()
+    }
+
+    async fn create_transaction(
+        create_request: &TransactionCreateRequest,
+        auth_token: &str,
+        api: &mut RouterIntoService<Body>,
+    ) -> TransactionCreateResponse {
+        let request = Request::builder()
+            .method("POST")
+            .header("Authorization", auth_token)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .uri("/api/transactions")
+            .body(Body::from(serde_json::to_vec(create_request).unwrap()))
+            .unwrap();
+        let response = ServiceExt::<Request<Body>>::ready(api)
+            .await
+            .unwrap()
+            .call(request)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&body).unwrap()
+    }
+
     fn create_api(pool: PgPool, enforcer: Arc<Enforcer>) -> RouterIntoService<Body> {
         ApiV1::router(Arc::new(pool), enforcer).into_service()
     }
@@ -680,7 +734,7 @@ mod test {
             .method("GET")
             .header("Authorization", user_auth_token)
             .header("Accept", "application/json")
-            .uri(dbg!(endpoint))
+            .uri(endpoint)
             .body(Body::empty())
             .unwrap();
         let response = ServiceExt::<Request<Body>>::ready(&mut api)
@@ -870,5 +924,37 @@ mod test {
         assert_eq!(user_one_accounts.accounts[1], user_one_account_two);
         assert_eq!(user_two_accounts.accounts[0], user_two_account_one);
         assert_eq!(user_two_accounts.accounts[1], user_two_account_two);
+    }
+
+    #[rstest]
+    #[awt]
+    #[sqlx::test(fixtures("institutions", "assets"))]
+    async fn it_allows_a_user_to_create_a_transaction(
+        #[future] enforcer: Arc<Enforcer>,
+        #[future] user_auth_token: String,
+        #[ignore] pool: Pool<Postgres>,
+    ) {
+        let mut api = create_api(pool, enforcer);
+        let create_user_request = UserCreateRequest {
+            name: "Test User".into(),
+        };
+        let _ = create_user(&create_user_request, &user_auth_token, &mut api).await;
+        let institution = get_institution_by_name("Toss Bank", &user_auth_token, &mut api).await;
+        let create_account_request = AccountCreateRequest {
+            name: "Test Account".into(),
+            institution_id: institution.id,
+        };
+        let account = create_account(&create_account_request, &user_auth_token, &mut api).await;
+        let asset = get_asset_by_symbol(&user_auth_token, &mut api, "KRW").await;
+        let create_request = TransactionCreateRequest {
+            posted_at: Utc::now(),
+            description: "A test transaction".to_owned().into(),
+            account_id: account.id,
+            asset_id: asset.id,
+            quantity: 1_000_000,
+        };
+        let transaction = create_transaction(&create_request, &user_auth_token, &mut api).await;
+
+        assert_eq!(create_request, transaction);
     }
 }
