@@ -1,23 +1,28 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, RequestPartsExt, Router,
-    extract::{FromRequestParts, Path, Query},
+    RequestPartsExt, Router,
+    body::Body,
+    extract::{FromRequestParts, Path, Request, State},
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
 use http::{StatusCode, request::Parts};
-use leptos::prelude::provide_context;
-use leptos_axum::LeptosRoutes;
-use leptos_router::SsrMode;
+use leptos::{
+    prelude::{expect_context, provide_context},
+    server,
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
+};
+use leptos_axum::{
+    extract, extract_with_state, generate_request_and_parts, handle_server_fns_with_context,
+};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, AppState, set_user_groups},
-    app::App,
+    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -91,14 +96,39 @@ impl FromRequestParts<AppState> for TransactionApiState {
         })
     }
 }
+
+#[utoipa::path(
+    get,
+    path = "/api/transactions",
+    tag = "Transactions",
+    params(GetListRequest, Pagination),
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 200, description = "The list of transactions.", body = TransactionGetListResponse)
+    )
+)]
+#[server(
+    name = TransactionApiGetList,
+    prefix = "/api",
+    endpoint = "/transactions",
+    input = GetUrl,
+    output = Json
+)]
 async fn get_list(
-    state: TransactionApiState,
-    pagination: Pagination,
-    cursor_key: CursorKey,
-    Query(filter): Query<GetListRequest>,
+    #[server(flatten)]
+    #[server(default)]
+    filter: GetListRequest,
 ) -> Result<TransactionGetListResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<TransactionApiState, _>(&state).await?;
+
+    let pagination = extract_with_state::<Pagination, _>(&state).await?;
+    let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
+
     let offset = pagination.offset();
-    let transactions = state
+    let transactions = api_state
         .transaction_service
         .get_list(offset, pagination.max_items, filter.into())
         .await?;
@@ -106,19 +136,60 @@ async fn get_list(
     Ok(response)
 }
 
-async fn get(
-    Path(PathTransactionId { id }): Path<PathTransactionId>,
-    state: TransactionApiState,
-) -> Result<TransactionGetResponse, ApiError> {
-    let transaction = state.transaction_service.get(id).await?;
+#[utoipa::path(
+    get,
+    path = "/api/transactions/{id}",
+    tag = "Transactions",
+    params(TransactionId),
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 200, description = "The transaction.", body = TransactionGetResponse),
+        (status = 404, description = "The transaction was not found."),
+    )
+)]
+#[server(
+    name = TransactionApiGet,
+    prefix = "/api",
+    endpoint = "transactions/",
+    input = GetUrl,
+    output = Json
+)]
+async fn get() -> Result<TransactionGetResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<TransactionApiState, _>(&state).await?;
+    let Path(PathTransactionId { id }) = extract().await?;
+
+    let transaction = api_state.transaction_service.get(id).await?;
     Ok(transaction.into())
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/transactions",
+    tag = "Transactions",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = CreateRequest,
+    responses(
+        (status = 201, description = "The newly created transaction.", body = TransactionCreateResponse),
+    ),
+)]
+#[server(
+    name = TransactionApiCreate,
+    prefix = "/api",
+    endpoint = "transactions",
+    input = Json,
+    output = Json,
+)]
 async fn create(
-    state: TransactionApiState,
-    Json(create_request): Json<CreateRequest>,
+    #[server(flatten)] create_request: CreateRequest,
 ) -> Result<TransactionCreateResponse, ApiError> {
-    let transaction = state
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<TransactionApiState, _>(&state).await?;
+    let transaction = api_state
         .transaction_service
         .create(create_request.into())
         .await?;
@@ -126,24 +197,89 @@ async fn create(
     Ok(transaction.into())
 }
 
-async fn update(
-    state: TransactionApiState,
-    Path(PathTransactionId { id }): Path<PathTransactionId>,
-    Json(update_request): Json<UpdateRequest>,
-) -> Result<TransactionUpdateResponse, ApiError> {
-    let transaction = state
+#[utoipa::path(
+    patch,
+    path = "/api/transactions/{id}",
+    params(TransactionId),
+    tag = "Transactions",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = UpdateRequest,
+    responses(
+        (status = 200, description = "The updated transaction.", body = TransactionUpdateResponse),
+        (status = 404, description = "The transaction was not found."),
+    ),
+)]
+#[server(
+    name = TransactionApiUpdate,
+    prefix = "/api",
+    endpoint = "assets/",
+    input = PatchJson,
+    output = PatchJson,
+)]
+async fn update(update_request: UpdateRequest) -> Result<TransactionUpdateResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<TransactionApiState, _>(&state).await?;
+    let Path(PathTransactionId { id }) = extract().await?;
+
+    let transaction = api_state
         .transaction_service
         .update(id, update_request.into())
         .await?;
     Ok(transaction.into())
 }
 
-async fn delete(
-    Path(PathTransactionId { id }): Path<PathTransactionId>,
-    state: TransactionApiState,
-) -> Result<DeleteResponse, ApiError> {
-    state.transaction_service.delete(id).await?;
+#[utoipa::path(
+    delete,
+    path = "/api/transactions/{id}",
+    params(TransactionId),
+    tag = "Transactions",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 204, description = "The transaction was successfully deleted."),
+        (status = 404, description = "The transaction was not found.", body = ApiErrorResponse, content_type = "application/json", example = json!(ApiErrorResponse {
+            code: 4040,
+            message: "Not found.".to_string()
+        })),
+    ),
+)]
+#[server(
+    name = TransactionApiDelete,
+    prefix = "/api",
+    endpoint = "transactions/",
+    input = DeleteUrl
+)]
+async fn delete() -> Result<DeleteResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<TransactionApiState, _>(&state).await?;
+    let Path(PathTransactionId { id }) = extract().await?;
+
+    api_state.transaction_service.delete(id).await?;
     Ok(DeleteResponse {})
+}
+
+async fn server_fn_handler(State(state): State<AppState>, req: Request<Body>) -> impl IntoResponse {
+    let path = match req.uri().to_string() {
+        val if val == "/" => "".to_string(),
+        val if val.starts_with("/?") => val.trim_start_matches("/").to_string(),
+        _ => "/".to_string(),
+    };
+    let (mut req, parts) = generate_request_and_parts(req);
+    *req.uri_mut() = format!("/api/transactions{path}").parse().unwrap();
+    handle_server_fns_with_context(
+        {
+            let app_state = state.clone();
+            move || {
+                provide_context(app_state.clone());
+                provide_context(parts.clone());
+            }
+        },
+        req,
+    )
+    .await
 }
 
 pub struct TransactionApi;
@@ -151,14 +287,15 @@ pub struct TransactionApi;
 impl Api for TransactionApi {
     fn router(state: AppState) -> Router<AppState> {
         Router::new()
-            .leptos_routes_with_context(
-                &state,
-                Self::routes(SsrMode::OutOfOrder),
-                {
-                    let app_state = state.clone();
-                    move || provide_context(app_state.clone())
-                },
-                App,
+            .route(
+                "/",
+                axum::routing::get(server_fn_handler).post(server_fn_handler),
+            )
+            .route(
+                "/{id}",
+                axum::routing::get(server_fn_handler)
+                    .patch(server_fn_handler)
+                    .delete(server_fn_handler),
             )
             .layer(
                 ServiceBuilder::new()

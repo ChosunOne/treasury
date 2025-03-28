@@ -98,7 +98,13 @@ impl FromRequestParts<AppState> for AssetApiState {
         (status = 200, description = "The list of assets.", body = AssetGetListResponse)
     )
 )]
-#[server(name = AssetApiGetList, prefix = "/api", endpoint = "/assets", input = GetUrl, output = Json)]
+#[server(
+    name = AssetApiGetList,
+    prefix = "/api",
+    endpoint = "/assets",
+    input = GetUrl,
+    output = Json
+)]
 async fn get_list(
     #[server(flatten)]
     #[server(default)]
@@ -153,7 +159,7 @@ async fn get() -> Result<AssetGetResponse, ApiError> {
     path = "/api/assets",
     tag = "Assets",
     security(
-    ("OpenIDConnect" = ["groups", "email"])
+        ("OpenIDConnect" = ["groups", "email"])
     ),
     request_body = CreateRequest,
     responses(
@@ -192,14 +198,14 @@ async fn create(
     responses(
         (status = 200, description = "The updated asset.", body = AssetUpdateResponse),
         (status = 404, description = "The asset was not found."),
-    )
+    ),
 )]
 #[server(
     name = AssetApiUpdate,
     prefix = "/api",
     endpoint = "assets/",
     input = PatchJson,
-    output = Json
+    output = PatchJson,
 )]
 async fn update(
     #[server(flatten)] update_request: UpdateRequest,

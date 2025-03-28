@@ -7,6 +7,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     model::{
@@ -24,7 +25,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq, ToSchema)]
 pub struct TransactionResponse<T> {
     pub id: TransactionId,
     #[serde(
@@ -85,7 +86,7 @@ impl IntoResponse for TransactionResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CreateRequest {
     #[serde(
         serialize_with = "serialize_datetime",
@@ -110,7 +111,8 @@ impl From<CreateRequest> for TransactionCreate {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetListRequest {
     #[serde(
         default,
@@ -167,7 +169,7 @@ impl From<GetListRequest> for TransactionFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
 pub struct GetListResponse {
     pub transactions: Vec<TransactionResponse<GetList>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -202,7 +204,7 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UpdateRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_id: Option<AssetId>,

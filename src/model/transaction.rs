@@ -2,12 +2,26 @@ use chrono::{DateTime, Utc};
 use derive_more::{From, FromStr};
 use serde::{Deserialize, Serialize};
 use sqlx::{Type, prelude::FromRow};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::model::{Filter, account::AccountId, asset::AssetId};
 
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, FromStr, From, Type, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    FromStr,
+    From,
+    Type,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    IntoParams,
 )]
+#[into_params(names("id"))]
 #[sqlx(transparent)]
 pub struct TransactionId(pub i64);
 
