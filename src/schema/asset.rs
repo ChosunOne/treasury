@@ -7,6 +7,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     model::{
@@ -19,7 +20,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, Eq, PartialEq, ToSchema)]
 pub struct AssetResponse<T> {
     /// The asset id
     pub id: AssetId,
@@ -74,7 +75,7 @@ impl IntoResponse for AssetResponse<UpdateResponse> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CreateRequest {
     pub name: String,
     pub symbol: String,
@@ -89,7 +90,8 @@ impl From<CreateRequest> for AssetCreate {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetListRequest {
     #[serde(
         default,
@@ -115,7 +117,7 @@ impl From<GetListRequest> for AssetFilter {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GetListResponse {
     pub assets: Vec<AssetResponse<GetList>>,
     pub next_cursor: Option<String>,
@@ -145,7 +147,7 @@ impl IntoResponse for GetListResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct UpdateRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

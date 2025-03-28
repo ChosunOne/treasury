@@ -106,7 +106,7 @@ impl FromRequestParts<AppState> for AccountApiState {
 #[utoipa::path(
     get,
     path = "/api/accounts",
-    tag="Accounts",
+    tag = "Accounts",
     params(GetListRequest, Pagination),
     security(
         ("OpenIDConnect" = ["groups", "email"])
@@ -115,7 +115,7 @@ impl FromRequestParts<AppState> for AccountApiState {
         (status = 200, description = "The list of accounts.", body = GetListResponse)
     ),
 )]
-#[server(name = AccountApiGetList, prefix="/api", endpoint="/accounts", input = GetUrl, output = Json)]
+#[server(name = AccountApiGetList, prefix = "/api", endpoint = "/accounts", input = GetUrl, output = Json)]
 pub async fn get_list(
     #[server(flatten)]
     #[server(default)]
@@ -139,7 +139,7 @@ pub async fn get_list(
 #[utoipa::path(
     get,
     path = "/api/accounts/{id}",
-    tag="Accounts",
+    tag = "Accounts",
     params(AccountId),
     security(
         ("OpenIDConnect" = ["groups", "email"])
@@ -151,8 +151,8 @@ pub async fn get_list(
 )]
 #[server(
     name = AccountApiGet,
-    prefix="/api",
-    endpoint="accounts/",
+    prefix = "/api",
+    endpoint = "accounts/",
     input = GetUrl,
     output = Json
 )]
@@ -162,8 +162,7 @@ pub async fn get() -> Result<AccountGetResponse, ApiError> {
     let Path(PathAccountId { id }) = extract().await?;
 
     let account = api_state.account_service.get(id).await?;
-    let response = account.into();
-    Ok(response)
+    Ok(account.into())
 }
 
 #[utoipa::path(
@@ -180,8 +179,8 @@ pub async fn get() -> Result<AccountGetResponse, ApiError> {
 )]
 #[server(
     name = AccountApiCreate,
-    prefix="/api",
-    endpoint="accounts",
+    prefix = "/api",
+    endpoint = "accounts",
     input = Json,
     output = Json
 )]
@@ -299,8 +298,6 @@ pub struct AccountApi;
 
 impl Api for AccountApi {
     fn router(state: AppState) -> Router<AppState> {
-        let server_fn_paths = server_fn_paths().collect::<Vec<_>>();
-        debug!("{server_fn_paths:#?}");
         Router::new()
             .route(
                 "/",

@@ -2,13 +2,27 @@ use chrono::{DateTime, Utc};
 use derive_more::{From, FromStr};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::model::Filter;
 
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, FromStr, From, Type, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    FromStr,
+    From,
+    Type,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    IntoParams,
 )]
+#[into_params(names("id"))]
 #[sqlx(transparent)]
 pub struct AssetId(pub Uuid);
 

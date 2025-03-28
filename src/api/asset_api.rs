@@ -1,23 +1,28 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, RequestPartsExt, Router,
-    extract::{FromRequestParts, Path, Query},
+    RequestPartsExt, Router,
+    body::Body,
+    extract::{FromRequestParts, Path, Request, State},
     middleware::from_fn_with_state,
     response::{IntoResponse, Response},
 };
 use http::{StatusCode, request::Parts};
-use leptos::prelude::provide_context;
-use leptos_axum::LeptosRoutes;
-use leptos_router::SsrMode;
+use leptos::{
+    prelude::{expect_context, provide_context},
+    server,
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
+};
+use leptos_axum::{
+    extract, extract_with_state, generate_request_and_parts, handle_server_fns_with_context,
+};
 use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, AppState, set_user_groups},
-    app::App,
+    api::{Api, ApiError, ApiErrorResponse, AppState, set_user_groups},
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
     authorization::{
         PermissionConfig, PermissionSet,
@@ -80,14 +85,33 @@ impl FromRequestParts<AppState> for AssetApiState {
         })
     }
 }
+
+#[utoipa::path(
+    get,
+    path = "/api/assets",
+    tag = "Assets",
+    params(GetListRequest, Pagination),
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 200, description = "The list of assets.", body = AssetGetListResponse)
+    )
+)]
+#[server(name = AssetApiGetList, prefix = "/api", endpoint = "/assets", input = GetUrl, output = Json)]
 async fn get_list(
-    state: AssetApiState,
-    pagination: Pagination,
-    cursor_key: CursorKey,
-    Query(filter): Query<GetListRequest>,
+    #[server(flatten)]
+    #[server(default)]
+    filter: GetListRequest,
 ) -> Result<AssetGetListResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
+
+    let pagination = extract_with_state::<Pagination, _>(&state).await?;
+    let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
+
     let offset = pagination.offset();
-    let assets = state
+    let assets = api_state
         .asset_service
         .get_list(offset, pagination.max_items, filter.into())
         .await?;
@@ -95,40 +119,152 @@ async fn get_list(
     Ok(response)
 }
 
-async fn get(
-    Path(PathAssetId { id }): Path<PathAssetId>,
-    state: AssetApiState,
-) -> Result<AssetGetResponse, ApiError> {
-    let asset = state.asset_service.get(id).await?;
+#[utoipa::path(
+    get,
+    path = "/api/assets/{id}",
+    tag = "Assets",
+    params(AssetId),
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 200, description = "The asset.", body = AssetGetResponse),
+        (status = 404, description = "The asset was not found."),
+    ),
+)]
+#[server(
+    name = AssetApiGet,
+    prefix = "/api",
+    endpoint = "assets/",
+    input = GetUrl,
+    output = Json
+)]
+async fn get() -> Result<AssetGetResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
+
+    let Path(PathAssetId { id }) = extract().await?;
+    let asset = api_state.asset_service.get(id).await?;
     Ok(asset.into())
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/assets",
+    tag = "Assets",
+    security(
+    ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = CreateRequest,
+    responses(
+        (status = 201, description = "The newly created asset.", body = AssetCreateResponse)
+    ),
+)]
+#[server(
+    name = AssetApiCreate,
+    prefix = "/api",
+    endpoint = "assets",
+    input = Json,
+    output = Json
+)]
 async fn create(
-    state: AssetApiState,
-    Json(create_request): Json<CreateRequest>,
+    #[server(flatten)] create_request: CreateRequest,
 ) -> Result<AssetCreateResponse, ApiError> {
-    let asset = state.asset_service.create(create_request.into()).await?;
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
+
+    let asset = api_state
+        .asset_service
+        .create(create_request.into())
+        .await?;
     Ok(asset.into())
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/assets/{id}",
+    params(AssetId),
+    tag = "Assets",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    request_body = UpdateRequest,
+    responses(
+        (status = 200, description = "The updated asset.", body = AssetUpdateResponse),
+        (status = 404, description = "The asset was not found."),
+    )
+)]
+#[server(
+    name = AssetApiUpdate,
+    prefix = "/api",
+    endpoint = "assets/",
+    input = PatchJson,
+    output = Json
+)]
 async fn update(
-    state: AssetApiState,
-    Path(PathAssetId { id }): Path<PathAssetId>,
-    Json(update_request): Json<UpdateRequest>,
+    #[server(flatten)] update_request: UpdateRequest,
 ) -> Result<AssetUpdateResponse, ApiError> {
-    let asset = state
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
+
+    let Path(PathAssetId { id }) = extract().await?;
+    let asset = api_state
         .asset_service
         .update(id, update_request.into())
         .await?;
     Ok(asset.into())
 }
 
-async fn delete(
-    Path(PathAssetId { id }): Path<PathAssetId>,
-    state: AssetApiState,
-) -> Result<DeleteResponse, ApiError> {
-    state.asset_service.delete(id).await?;
+#[utoipa::path(
+    delete,
+    path = "/api/assets/{id}",
+    params(AssetId),
+    tag = "Assets",
+    security(
+        ("OpenIDConnect" = ["groups", "email"])
+    ),
+    responses(
+        (status = 204, description = "The asset was successfully deleted."),
+        (status = 404, description = "The asset was not found.", body = ApiErrorResponse, content_type = "application/json", example = json!(ApiErrorResponse {
+            code: 4040,
+            message: "Not found.".to_string()
+        })),
+    ),
+)]
+#[server(
+    name = AssetApiDelete,
+    prefix = "/api",
+    endpoint = "assets/",
+    input = DeleteUrl
+)]
+async fn delete() -> Result<DeleteResponse, ApiError> {
+    let state = expect_context::<AppState>();
+    let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
+
+    let Path(PathAssetId { id }) = extract().await?;
+    api_state.asset_service.delete(id).await?;
     Ok(DeleteResponse {})
+}
+
+async fn server_fn_handler(State(state): State<AppState>, req: Request<Body>) -> impl IntoResponse {
+    let path = match req.uri().to_string() {
+        val if val == "/" => "".to_string(),
+        val if val.starts_with("/?") => val.trim_start_matches("/").to_string(),
+        _ => "/".to_string(),
+    };
+    let (mut req, parts) = generate_request_and_parts(req);
+    *req.uri_mut() = format!("/api/assets{path}").parse().unwrap();
+    handle_server_fns_with_context(
+        {
+            let app_state = state.clone();
+            move || {
+                provide_context(app_state.clone());
+                provide_context(parts.clone());
+            }
+        },
+        req,
+    )
+    .await
 }
 
 pub struct AssetApi;
@@ -136,14 +272,15 @@ pub struct AssetApi;
 impl Api for AssetApi {
     fn router(state: AppState) -> Router<AppState> {
         Router::new()
-            .leptos_routes_with_context(
-                &state,
-                Self::routes(SsrMode::OutOfOrder),
-                {
-                    let app_state = state.clone();
-                    move || provide_context(app_state.clone())
-                },
-                App,
+            .route(
+                "/",
+                axum::routing::get(server_fn_handler).post(server_fn_handler),
+            )
+            .route(
+                "/{id}",
+                axum::routing::get(server_fn_handler)
+                    .patch(server_fn_handler)
+                    .delete(server_fn_handler),
             )
             .layer(
                 ServiceBuilder::new()
