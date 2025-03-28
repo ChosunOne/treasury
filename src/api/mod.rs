@@ -16,11 +16,14 @@ use http::{HeaderValue, Method, StatusCode, header::CONTENT_TYPE, request::Parts
 use leptos::{
     prelude::*,
     server_fn::{
+        axum::server_fn_paths,
         codec::IntoRes,
         error::{FromServerFnError, ServerFnErrorErr},
     },
 };
-use leptos_axum::{AxumRouteListing, ResponseOptions};
+use leptos_axum::{
+    AxumRouteListing, LeptosRoutes, ResponseOptions, generate_route_list_with_exclusions,
+};
 use leptos_router::{Method as LeptosMethod, SsrMode};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::PgPool;
@@ -39,6 +42,7 @@ use crate::{
         account_api::AccountApi, asset_api::AssetApi, institution_api::InstitutionApi,
         transaction_api::TransactionApi,
     },
+    app::App,
     authentication::{authenticated_token::AuthenticatedToken, registered_user::RegisteredUser},
     model::cursor_key::EncryptionError,
     service::ServiceError,
@@ -107,9 +111,17 @@ impl ApiV1 {
             leptos_options,
         };
 
+        let api_paths = server_fn_paths()
+            .filter(|(p, _)| p.starts_with("/api"))
+            .map(|(p, _)| p.to_owned())
+            .collect();
+
+        let routes = generate_route_list_with_exclusions(App, Some(api_paths));
+
         let swagger = SwaggerUi::new("/docs").url("/private/api.json", DocsApi::openapi());
         Router::new()
             .merge(swagger)
+            .leptos_routes(&state, routes, App)
             .nest("/api/accounts", AccountApi::router(state.clone()))
             .nest("/api/assets", AssetApi::router(state.clone()))
             .nest("/api/transactions", TransactionApi::router(state.clone()))

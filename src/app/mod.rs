@@ -8,6 +8,7 @@ use leptos_router::{
 use crate::app::{
     accounts::{AccountDetail, Accounts, NoAccount},
     assets::{AssetDetail, Assets, NoAsset},
+    home::Home,
     institutions::{InstitutionDetail, Institutions, NoInstitution},
     transactions::{NoTransaction, TransactionDetail, Transactions},
     users::{NoUser, UserDetail, Users},
@@ -15,6 +16,7 @@ use crate::app::{
 
 pub mod accounts;
 pub mod assets;
+pub mod home;
 pub mod institutions;
 pub mod transactions;
 pub mod users;
@@ -31,6 +33,7 @@ pub fn App() -> impl IntoView {
 
             <main>
                 <Routes fallback=|| "This page could not be found.">
+                    <Route path=path!("/home") view=Home/>
                     <ParentRoute path=path!("/home/accounts") view=Accounts>
                         <Route path=path!(":id") view=AccountDetail/>
                         <Route path=path!("") view=NoAccount/>
