@@ -74,9 +74,9 @@ impl CreateRepository<AssetCreate, Asset> for AssetRepository {
         let new_asset = query_as!(
             Asset,
             r#"
-            INSERT INTO asset (name, symbol)
-            VALUES ($1, $2)
-            RETURNING *
+                INSERT INTO asset (name, symbol)
+                VALUES ($1, $2)
+                RETURNING *
             "#,
             create_model.name,
             create_model.symbol
@@ -97,10 +97,10 @@ impl UpdateRepository<Asset> for AssetRepository {
         let updated_asset = query_as!(
             Asset,
             r#"
-            UPDATE asset
-            SET name = $2, symbol = $3
-            WHERE id = $1
-            RETURNING *
+                UPDATE asset
+                SET name = $2, symbol = $3
+                WHERE id = $1
+                RETURNING *
             "#,
             model.id.0,
             model.name,
@@ -122,9 +122,9 @@ impl DeleteRepository<AssetId, Asset> for AssetRepository {
         let deleted_asset = query_as!(
             Asset,
             r#"
-            DELETE FROM asset
-            WHERE id = $1
-            RETURNING *
+                DELETE FROM asset
+                WHERE id = $1
+                RETURNING *
             "#,
             id.0
         )

@@ -1,362 +1,275 @@
-use std::{
-    env::var,
-    sync::{Arc, OnceLock},
-    time::Duration,
-};
+pub use error::{ApiError, ApiErrorResponse};
 
-use axum::{
-    Json, Router,
-    extract::{FromRef, FromRequest, FromRequestParts, Request},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
-use casbin::Enforcer;
-use docs_api::DocsApi;
-use http::{HeaderValue, Method, StatusCode, header::CONTENT_TYPE, request::Parts};
-use leptos::{
-    prelude::*,
-    server_fn::{
-        axum::server_fn_paths,
-        codec::IntoRes,
-        error::{FromServerFnError, ServerFnErrorErr},
-    },
-};
-use leptos_axum::{
-    AxumRouteListing, LeptosRoutes, ResponseOptions, generate_route_list_with_exclusions,
-};
-use leptos_router::{Method as LeptosMethod, SsrMode};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sqlx::PgPool;
-use thiserror::Error;
-use tower::ServiceBuilder;
-use tower_http::{
-    compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
-};
-use tracing::error;
-use user_api::UserApi;
-use utoipa::{OpenApi, ToSchema};
-use utoipa_swagger_ui::SwaggerUi;
+#[cfg(feature = "ssr")]
+mod ssr_imports {
+    pub use crate::{
+        api::{
+            account_api::AccountApi, asset_api::AssetApi, docs_api::DocsApi,
+            institution_api::InstitutionApi, transaction_api::TransactionApi, user_api::UserApi,
+        },
+        app::App,
+        authentication::{
+            authenticated_token::AuthenticatedToken, registered_user::RegisteredUser,
+        },
+    };
+    pub use axum::{
+        Json, Router,
+        extract::{FromRef, FromRequest, FromRequestParts, Request},
+        middleware::Next,
+        response::{IntoResponse, Response},
+    };
+    pub use casbin::Enforcer;
+    pub use http::{Method, request::Parts};
+    pub use leptos::{prelude::*, server_fn::axum::server_fn_paths};
+    pub use leptos_axum::{AxumRouteListing, LeptosRoutes, generate_route_list_with_exclusions};
+    pub use leptos_router::{Method as LeptosMethod, SsrMode};
+    pub use oauth2::{
+        AuthUrl, Client, ClientId, ClientSecret, EndpointNotSet, EndpointSet, ExtraTokenFields,
+        RedirectUrl, StandardRevocableToken, StandardTokenResponse, TokenUrl,
+        basic::{
+            BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
+            BasicTokenType,
+        },
+    };
+    pub use serde::{Deserialize, Serialize};
+    pub use sqlx::PgPool;
+    pub use std::{
+        env::var,
+        sync::{Arc, OnceLock},
+        time::Duration,
+    };
+    pub use tower::ServiceBuilder;
+    pub use tower_http::{
+        compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer,
+    };
+    pub use utoipa::OpenApi;
+    pub use utoipa_swagger_ui::SwaggerUi;
+}
 
-use crate::{
-    api::{
-        account_api::AccountApi, asset_api::AssetApi, institution_api::InstitutionApi,
-        transaction_api::TransactionApi,
-    },
-    app::App,
-    authentication::{authenticated_token::AuthenticatedToken, registered_user::RegisteredUser},
-    model::cursor_key::EncryptionError,
-    service::ServiceError,
-};
-
+#[cfg(feature = "ssr")]
 pub mod account_api;
+#[cfg(feature = "ssr")]
 pub mod asset_api;
+#[cfg(feature = "ssr")]
 pub mod docs_api;
+pub mod error;
+#[cfg(feature = "ssr")]
 pub mod institution_api;
+#[cfg(feature = "ssr")]
 pub mod transaction_api;
+#[cfg(feature = "ssr")]
 pub mod user_api;
 
-static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
+#[cfg(feature = "ssr")]
+mod ssr {
+    use super::*;
+    use ssr_imports::*;
 
-pub async fn set_user_groups(
-    mut token: AuthenticatedToken,
-    user: Option<RegisteredUser>,
-    mut request: Request,
-    next: Next,
-) -> Response {
-    if token.groups().is_empty() && token.email_verified() {
-        if user.is_some() {
-            token.add_group("user".into());
-        } else {
-            token.add_group("unregistered_user".into());
+    static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
+    static DEX_STATIC_CLIENT_ID: OnceLock<String> = OnceLock::new();
+    static DEX_STATIC_CLIENT_SECRET: OnceLock<String> = OnceLock::new();
+    static DEX_AUTH_URL: OnceLock<String> = OnceLock::new();
+    static DEX_TOKEN_URL: OnceLock<String> = OnceLock::new();
+    static DEX_REDIRECT_URL: OnceLock<String> = OnceLock::new();
+
+    #[derive(Debug, Clone, Deserialize, Serialize)]
+    pub struct IDToken {
+        id_token: String,
+    }
+
+    impl ExtraTokenFields for IDToken {}
+
+    pub async fn set_user_groups(
+        mut token: AuthenticatedToken,
+        user: Option<RegisteredUser>,
+        mut request: Request,
+        next: Next,
+    ) -> Response {
+        if token.groups().is_empty() && token.email_verified() {
+            if user.is_some() {
+                token.add_group("user".into());
+            } else {
+                token.add_group("unregistered_user".into());
+            }
         }
+        token.normalize_groups();
+        request.extensions_mut().insert(token);
+        next.run(request).await
     }
-    token.normalize_groups();
-    request.extensions_mut().insert(token);
-    next.run(request).await
-}
 
-pub trait Api {
-    fn routes(mode: SsrMode) -> Vec<AxumRouteListing> {
-        vec![
-            AxumRouteListing::new(
-                "/".to_owned(),
-                mode.clone(),
-                vec![LeptosMethod::Get, LeptosMethod::Post],
-                vec![],
-            ),
-            AxumRouteListing::new(
-                "/{id}".to_owned(),
-                mode.clone(),
-                vec![LeptosMethod::Get, LeptosMethod::Patch, LeptosMethod::Delete],
-                vec![],
-            ),
-        ]
+    pub trait Api {
+        fn routes(mode: SsrMode) -> Vec<AxumRouteListing> {
+            vec![
+                AxumRouteListing::new(
+                    "/".to_owned(),
+                    mode.clone(),
+                    vec![LeptosMethod::Get, LeptosMethod::Post],
+                    vec![],
+                ),
+                AxumRouteListing::new(
+                    "/{id}".to_owned(),
+                    mode.clone(),
+                    vec![LeptosMethod::Get, LeptosMethod::Patch, LeptosMethod::Delete],
+                    vec![],
+                ),
+            ]
+        }
+        fn router(state: AppState) -> Router<AppState>;
     }
-    fn router(state: AppState) -> Router<AppState>;
-}
 
-pub struct ApiV1;
+    pub struct ApiV1;
 
-impl ApiV1 {
-    pub fn router(connection_pool: Arc<PgPool>, enforcer: Arc<Enforcer>) -> Router {
-        let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
-            var("CORS_ALLOWED_ORIGIN")
-                .expect("Failed to read `CORS_ALLOWED_ORIGIN` environment variable.")
-        });
-        let conf = get_configuration(Some("Cargo.toml")).unwrap();
-        let leptos_options = conf.leptos_options;
-        let state = AppState {
-            connection_pool,
-            enforcer,
-            leptos_options,
-        };
-
-        let api_paths = server_fn_paths()
-            .filter(|(p, _)| p.starts_with("/api"))
-            .map(|(p, _)| p.to_owned())
-            .collect();
-
-        let routes = generate_route_list_with_exclusions(App, Some(api_paths));
-
-        let swagger = SwaggerUi::new("/docs").url("/private/api.json", DocsApi::openapi());
-        Router::new()
-            .merge(swagger)
-            .leptos_routes(&state, routes, App)
-            .nest("/api/accounts", AccountApi::router(state.clone()))
-            .nest("/api/assets", AssetApi::router(state.clone()))
-            .nest("/api/transactions", TransactionApi::router(state.clone()))
-            .nest("/api/users", UserApi::router(state.clone()))
-            .nest("/api/institutions", InstitutionApi::router(state.clone()))
-            .nest("/docs", DocsApi::router(state.clone()))
-            .layer(
-                ServiceBuilder::new()
-                    .layer(TraceLayer::new_for_http())
-                    .layer(CompressionLayer::new().gzip(true))
-                    .layer(TimeoutLayer::new(Duration::from_secs(30)))
-                    .layer(
-                        CorsLayer::new()
-                            .allow_origin([allow_origin.parse().unwrap()])
-                            .allow_methods([
-                                Method::GET,
-                                Method::PUT,
-                                Method::POST,
-                                Method::PATCH,
-                                Method::DELETE,
-                            ]),
-                    ),
+    impl ApiV1 {
+        pub fn router(connection_pool: Arc<PgPool>, enforcer: Arc<Enforcer>) -> Router {
+            let allow_origin = CORS_ALLOWED_ORIGIN.get_or_init(|| {
+                var("CORS_ALLOWED_ORIGIN")
+                    .expect("Failed to read `CORS_ALLOWED_ORIGIN` environment variable.")
+            });
+            let conf = get_configuration(Some("Cargo.toml")).unwrap();
+            let leptos_options = conf.leptos_options;
+            let client_id = ClientId::new(
+                DEX_STATIC_CLIENT_ID
+                    .get_or_init(|| {
+                        var("DEX_STATIC_CLIENT_ID")
+                            .expect("Failed to read `DEX_STATIC_CLIENT_ID` environment variable.")
+                    })
+                    .clone(),
+            );
+            let client_secret = ClientSecret::new(
+                DEX_STATIC_CLIENT_SECRET
+                    .get_or_init(|| {
+                        var("DEX_STATIC_CLIENT_SECRET").expect(
+                            "Failed to read `DEX_STATIC_CLIENT_SECRET` environment variable.",
+                        )
+                    })
+                    .clone(),
+            );
+            let auth_url = AuthUrl::new(
+                DEX_AUTH_URL
+                    .get_or_init(|| {
+                        var("DEX_AUTH_URL")
+                            .expect("Failed to read `DEX_AUTH_URL` environment variable.")
+                    })
+                    .clone(),
             )
-            .with_state(state)
-    }
-}
+            .expect("Invalid auth url.");
+            let token_url = TokenUrl::new(
+                DEX_TOKEN_URL
+                    .get_or_init(|| {
+                        var("DEX_TOKEN_URL")
+                            .expect("Failed to read `DEX_TOKEN_URL` environment variable.")
+                    })
+                    .clone(),
+            )
+            .expect("Invalid token url.");
+            let redirect_url = RedirectUrl::new(
+                DEX_REDIRECT_URL
+                    .get_or_init(|| {
+                        var("DEX_REDIRECT_URL")
+                            .expect("Failed to read `DEX_REDIRECT_URL` environment variable.")
+                    })
+                    .clone(),
+            )
+            .expect("Invalid redirect url.");
+            let oauth_client = Client::new(client_id)
+                .set_client_secret(client_secret)
+                .set_auth_uri(auth_url)
+                .set_token_uri(token_url)
+                .set_redirect_uri(redirect_url);
+            let state = AppState {
+                connection_pool,
+                enforcer,
+                leptos_options,
+                oauth_client,
+            };
 
-#[derive(Clone, FromRef)]
-pub struct AppState {
-    pub connection_pool: Arc<PgPool>,
-    pub enforcer: Arc<Enforcer>,
-    pub leptos_options: LeptosOptions,
-}
+            let api_paths = server_fn_paths()
+                .filter(|(p, _)| p.starts_with("/api"))
+                .map(|(p, _)| p.to_owned())
+                .collect();
 
-#[derive(FromRequest, Serialize)]
-#[from_request(via(Json), rejection(ApiError))]
-pub struct ApiJson<T>(T);
+            let routes = generate_route_list_with_exclusions(App, Some(api_paths));
 
-impl<T> IntoResponse for ApiJson<T>
-where
-    Json<T>: IntoResponse,
-{
-    fn into_response(self) -> Response {
-        Json(self.0).into_response()
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum ApiError {
-    #[error("Invalid JSON in request.")]
-    JsonRejection,
-    #[error("Not found.")]
-    NotFound,
-    #[error("Error in service.")]
-    Service(#[from] ServiceError),
-    #[error("{0}")]
-    Encryption(#[from] EncryptionError),
-    #[error("Internal server error.")]
-    ServerError,
-    #[error("{0}")]
-    ClientError(String),
-}
-
-impl ApiError {
-    pub fn status(&self) -> StatusCode {
-        match self {
-            ApiError::JsonRejection => StatusCode::BAD_REQUEST,
-            ApiError::NotFound => StatusCode::NOT_FOUND,
-            ApiError::Service(service_error) => match service_error {
-                ServiceError::AlreadyRegistered => StatusCode::CONFLICT,
-                ServiceError::NotFound => StatusCode::NOT_FOUND,
-                ServiceError::Unauthorized => StatusCode::FORBIDDEN,
-                _ => StatusCode::INTERNAL_SERVER_ERROR,
-            },
-            ApiError::Encryption(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiError::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
-            ApiError::ClientError(_) => StatusCode::BAD_REQUEST,
+            let swagger = SwaggerUi::new("/docs").url("/private/api.json", DocsApi::openapi());
+            Router::new()
+                .merge(swagger)
+                .leptos_routes(&state, routes, App)
+                .nest("/api/accounts", AccountApi::router(state.clone()))
+                .nest("/api/assets", AssetApi::router(state.clone()))
+                .nest("/api/transactions", TransactionApi::router(state.clone()))
+                .nest("/api/users", UserApi::router(state.clone()))
+                .nest("/api/institutions", InstitutionApi::router(state.clone()))
+                .nest("/docs", DocsApi::router(state.clone()))
+                .layer(
+                    ServiceBuilder::new()
+                        .layer(TraceLayer::new_for_http())
+                        .layer(CompressionLayer::new().gzip(true))
+                        .layer(TimeoutLayer::new(Duration::from_secs(30)))
+                        .layer(
+                            CorsLayer::new()
+                                .allow_origin([allow_origin.parse().unwrap()])
+                                .allow_methods([
+                                    Method::GET,
+                                    Method::PUT,
+                                    Method::POST,
+                                    Method::PATCH,
+                                    Method::DELETE,
+                                ]),
+                        ),
+                )
+                .with_state(state)
         }
     }
-}
 
-impl Serialize for ApiError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    #[derive(Clone, FromRef)]
+    pub struct AppState {
+        pub connection_pool: Arc<PgPool>,
+        pub enforcer: Arc<Enforcer>,
+        pub leptos_options: LeptosOptions,
+        pub oauth_client: Client<
+            BasicErrorResponse,
+            StandardTokenResponse<IDToken, BasicTokenType>,
+            BasicTokenIntrospectionResponse,
+            StandardRevocableToken,
+            BasicRevocationErrorResponse,
+            EndpointSet,
+            EndpointNotSet,
+            EndpointNotSet,
+            EndpointNotSet,
+            EndpointSet,
+        >,
+    }
+
+    #[derive(FromRequest, Serialize)]
+    #[from_request(via(Json), rejection(ApiError))]
+    pub struct ApiJson<T>(pub T);
+
+    impl<T> IntoResponse for ApiJson<T>
     where
-        S: Serializer,
+        Json<T>: IntoResponse,
     {
-        ApiErrorResponse::from(self).serialize(serializer)
+        fn into_response(self) -> Response {
+            Json(self.0).into_response()
+        }
     }
-}
 
-impl<'de> Deserialize<'de> for ApiError {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    /// Helper function to deal with leptos context but preserve our own
+    /// error types
+    pub async fn extract_with_state<T, S>(state: &S) -> Result<T, T::Rejection>
     where
-        D: Deserializer<'de>,
+        T: Sized + FromRequestParts<S>,
     {
-        let error_response = ApiErrorResponse::deserialize(deserializer)?;
-        match error_response.code {
-            INTERNAL_SERVER_ERROR => Ok(Self::ServerError),
-            _ => Ok(Self::ClientError(error_response.message)),
-        }
+        let mut parts = expect_context::<Parts>();
+        T::from_request_parts(&mut parts, state).await
     }
 }
 
-impl From<ServerFnError> for ApiError {
-    fn from(value: ServerFnError) -> Self {
-        match value {
-            ServerFnError::Request(e) => Self::ClientError(e),
-            ServerFnError::Deserialization(e) => Self::ClientError(e),
-            ServerFnError::Serialization(e) => Self::ClientError(e),
-            e => {
-                error!("{e}");
-                Self::ServerError
-            }
-        }
-    }
-}
-
-impl From<ServerFnErrorErr> for ApiError {
-    fn from(value: ServerFnErrorErr) -> Self {
-        Self::from_server_fn_error(value)
-    }
-}
-
-impl FromServerFnError for ApiError {
-    fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
-        match value {
-            ServerFnErrorErr::Request(e) => Self::ClientError(e),
-            ServerFnErrorErr::Deserialization(e) => Self::ClientError(e),
-            ServerFnErrorErr::Serialization(e) => Self::ClientError(e),
-            e => {
-                error!("{e}");
-                Self::ServerError
-            }
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ApiErrorResponse {
-    code: usize,
-    message: String,
-}
-
-const JSON_REJECTION: usize = 4000;
-const BAD_REQUEST: usize = 4001;
-const FORBIDDEN: usize = 4030;
-const NOT_FOUND: usize = 4040;
-const ALREADY_REGISTERED: usize = 4090;
-const INTERNAL_SERVER_ERROR: usize = 5000;
-
-impl From<&ApiError> for ApiErrorResponse {
-    fn from(value: &ApiError) -> Self {
-        let response = match value {
-            ApiError::JsonRejection => Self {
-                code: JSON_REJECTION,
-                message: "Invalid JSON in request.".into(),
-            },
-            ApiError::NotFound => Self {
-                code: NOT_FOUND,
-                message: "Not found.".into(),
-            },
-            ApiError::Service(service_error) => match service_error {
-                ServiceError::AlreadyRegistered => Self {
-                    code: ALREADY_REGISTERED,
-                    message: "User is already registered.".into(),
-                },
-                ServiceError::NotFound => Self {
-                    code: NOT_FOUND,
-                    message: "Not found.".into(),
-                },
-                ServiceError::Unauthorized => Self {
-                    code: FORBIDDEN,
-                    message: "Forbidden.".into(),
-                },
-                e => {
-                    error!("{e}");
-                    Self {
-                        code: INTERNAL_SERVER_ERROR,
-                        message: "Internal server error.".into(),
-                    }
-                }
-            },
-            ApiError::ServerError => Self {
-                code: INTERNAL_SERVER_ERROR,
-                message: "Internal server error.".into(),
-            },
-            ApiError::ClientError(message) => Self {
-                code: BAD_REQUEST,
-                message: message.clone(),
-            },
-            e => {
-                error!("{e}");
-                Self {
-                    code: INTERNAL_SERVER_ERROR,
-                    message: "Internal server error.".into(),
-                }
-            }
-        };
-        let response_opts = expect_context::<ResponseOptions>();
-        response_opts.set_status(value.status());
-        response_opts.insert_header(
-            CONTENT_TYPE,
-            HeaderValue::from_str("application/json").unwrap(),
-        );
-        provide_context(response_opts);
-        response
-    }
-}
-
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        let status = self.status();
-        let message = ApiErrorResponse::from(&self);
-        (status, ApiJson(message)).into_response()
-    }
-}
-
-impl IntoRes<ApiJson<ApiErrorResponse>, Response, ()> for ApiError {
-    async fn into_res(self) -> Result<Response, ()> {
-        Ok(self.into_response())
-    }
-}
-
-/// Helper function to deal with leptos context but preserve our own
-/// error types
-pub async fn extract_with_state<T, S>(state: &S) -> Result<T, T::Rejection>
-where
-    T: Sized + FromRequestParts<S>,
-{
-    let mut parts = expect_context::<Parts>();
-    T::from_request_parts(&mut parts, state).await
-}
+#[cfg(feature = "ssr")]
+pub use ssr::*;
 
 #[cfg(test)]
 mod test {
+    use ssr_imports::*;
     use std::env::var;
 
     use axum::{body::Body, routing::RouterIntoService};

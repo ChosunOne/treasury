@@ -52,4 +52,4 @@ async fn main() {
 }
 
 #[cfg(not(feature = "ssr"))]
-async fn main() {}
+fn main() {}

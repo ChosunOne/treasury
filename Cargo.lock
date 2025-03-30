@@ -100,7 +100,7 @@ dependencies = [
 [[package]]
 name = "any_spawner"
 version = "0.2.1"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "futures",
  "thiserror 2.0.12",
@@ -443,6 +443,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cfg_aliases"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
+
+[[package]]
 name = "chrono"
 version = "0.4.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -452,6 +458,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -570,7 +577,7 @@ dependencies = [
 [[package]]
 name = "const_str_slice_concat"
 version = "0.1.0"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 
 [[package]]
 name = "convert_case"
@@ -867,7 +874,7 @@ dependencies = [
 [[package]]
 name = "either_of"
 version = "0.1.5"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "paste",
  "pin-project-lite",
@@ -1142,9 +1149,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73fea8450eea4bac3940448fb7ae50d91f034f941199fcd9d909a5a07aa455f0"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi",
  "wasi 0.14.2+wasi-0.2.4",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1366,7 +1375,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "hydration_context"
 version = "0.3.0"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "futures",
  "js-sys",
@@ -1414,6 +1423,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -1722,7 +1732,7 @@ dependencies = [
 [[package]]
 name = "leptos"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "any_spawner",
  "base64",
@@ -1759,7 +1769,7 @@ dependencies = [
 [[package]]
 name = "leptos_axum"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "any_spawner",
  "axum",
@@ -1783,7 +1793,7 @@ dependencies = [
 [[package]]
 name = "leptos_config"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "config",
  "regex",
@@ -1795,7 +1805,7 @@ dependencies = [
 [[package]]
 name = "leptos_dom"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "js-sys",
  "or_poisoned",
@@ -1809,7 +1819,7 @@ dependencies = [
 [[package]]
 name = "leptos_hot_reload"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "anyhow",
  "camino",
@@ -1826,7 +1836,7 @@ dependencies = [
 [[package]]
 name = "leptos_integration_utils"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "futures",
  "hydration_context",
@@ -1840,7 +1850,7 @@ dependencies = [
 [[package]]
 name = "leptos_macro"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "attribute-derive",
  "cfg-if",
@@ -1862,7 +1872,7 @@ dependencies = [
 [[package]]
 name = "leptos_meta"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "futures",
  "indexmap",
@@ -1877,7 +1887,7 @@ dependencies = [
 [[package]]
 name = "leptos_router"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "any_spawner",
  "either_of",
@@ -1902,7 +1912,7 @@ dependencies = [
 [[package]]
 name = "leptos_router_macro"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "proc-macro-error2",
  "proc-macro2",
@@ -1913,7 +1923,7 @@ dependencies = [
 [[package]]
 name = "leptos_server"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "any_spawner",
  "base64",
@@ -2138,7 +2148,7 @@ dependencies = [
 [[package]]
 name = "next_tuple"
 version = "0.1.0"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 
 [[package]]
 name = "no-std-compat"
@@ -2233,6 +2243,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "oauth2"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51e219e79014df21a225b1860a479e2dcd7cbd9130f4defd4bd0e191ea31d67d"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.2.15",
+ "http",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "sha2",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
 name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2244,7 +2274,7 @@ dependencies = [
 [[package]]
 name = "oco_ref"
 version = "0.2.0"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "serde",
  "thiserror 2.0.12",
@@ -2318,7 +2348,7 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 [[package]]
 name = "or_poisoned"
 version = "0.1.0"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 
 [[package]]
 name = "overload"
@@ -2569,6 +2599,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "quinn"
+version = "0.11.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3bd15a6f2967aef83887dcb9fec0014580467e33720d073560cf015a5683012"
+dependencies = [
+ "bytes",
+ "cfg_aliases",
+ "pin-project-lite",
+ "quinn-proto",
+ "quinn-udp",
+ "rustc-hash",
+ "rustls",
+ "socket2",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
+name = "quinn-proto"
+version = "0.11.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b820744eb4dc9b57a3398183639c511b5a26d2ed702cedd3febaa1393caa22cc"
+dependencies = [
+ "bytes",
+ "getrandom 0.3.2",
+ "rand 0.9.0",
+ "ring",
+ "rustc-hash",
+ "rustls",
+ "rustls-pki-types",
+ "slab",
+ "thiserror 2.0.12",
+ "tinyvec",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
+name = "quinn-udp"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "541d0f57c6ec747a90738a52741d3221f7960e8ac2f0ff4b1a63680e033b4ab5"
+dependencies = [
+ "cfg_aliases",
+ "libc",
+ "once_cell",
+ "socket2",
+ "tracing",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2668,7 +2752,7 @@ dependencies = [
 [[package]]
 name = "reactive_graph"
 version = "0.2.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "any_spawner",
  "async-lock",
@@ -2689,7 +2773,7 @@ dependencies = [
 [[package]]
 name = "reactive_stores"
 version = "0.2.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "guardian",
  "itertools",
@@ -2703,7 +2787,7 @@ dependencies = [
 [[package]]
 name = "reactive_stores_macro"
 version = "0.2.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "convert_case 0.7.1",
  "proc-macro-error2",
@@ -2809,7 +2893,10 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
+ "quinn",
+ "rustls",
  "rustls-pemfile",
+ "rustls-pki-types",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -2817,12 +2904,14 @@ dependencies = [
  "system-configuration",
  "tokio",
  "tokio-native-tls",
+ "tokio-rustls",
  "tower",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "webpki-roots",
  "windows-registry",
 ]
 
@@ -3010,6 +3099,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "822ee9188ac4ec04a2f0531e55d035fb2de73f18b41a63c70c2712503b6fb13c"
 dependencies = [
  "once_cell",
+ "ring",
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",
@@ -3030,6 +3120,9 @@ name = "rustls-pki-types"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "917ce264624a4b4db1c364dcc35bfca9ded014d0a958cd47ad3e960e988ea51c"
+dependencies = [
+ "web-time",
+]
 
 [[package]]
 name = "rustls-webpki"
@@ -3194,7 +3287,7 @@ dependencies = [
 [[package]]
 name = "server_fn"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "axum",
  "base64",
@@ -3232,7 +3325,7 @@ dependencies = [
 [[package]]
 name = "server_fn_macro"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "const_format",
  "convert_case 0.6.0",
@@ -3246,7 +3339,7 @@ dependencies = [
 [[package]]
 name = "server_fn_macro_default"
 version = "0.8.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "server_fn_macro",
  "syn",
@@ -3698,7 +3791,7 @@ dependencies = [
 [[package]]
 name = "tachys"
 version = "0.2.0-beta"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "any_spawner",
  "async-trait",
@@ -3804,7 +3897,7 @@ dependencies = [
 [[package]]
 name = "throw_error"
 version = "0.3.0"
-source = "git+https://github.com/ChosunOne/leptos?branch=custom%2Fmy-enhancements#01e89c81fa071f480e0ee2456e96c7ac69071631"
+source = "git+https://github.com/leptos-rs/leptos?branch=main#1a83a7898082212ac4804f9fecb0fae5729b7774"
 dependencies = [
  "pin-project-lite",
 ]
@@ -4135,6 +4228,7 @@ dependencies = [
  "leptos_axum",
  "leptos_meta",
  "leptos_router",
+ "oauth2",
  "rand 0.9.0",
  "reqwest",
  "rstest",
@@ -4276,6 +4370,7 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
@@ -4579,6 +4674,15 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2210b291f7ea53617fbafcc4939f10914214ec15aace5ba62293a668f322c5c9"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ use leptos_router::{
 use crate::app::{
     accounts::{AccountDetail, Accounts, NoAccount},
     assets::{AssetDetail, Assets, NoAsset},
+    auth::Login,
     home::Home,
     institutions::{InstitutionDetail, Institutions, NoInstitution},
     transactions::{NoTransaction, TransactionDetail, Transactions},
@@ -16,6 +17,7 @@ use crate::app::{
 
 pub mod accounts;
 pub mod assets;
+pub mod auth;
 pub mod home;
 pub mod institutions;
 pub mod transactions;
@@ -30,6 +32,8 @@ pub fn App() -> impl IntoView {
             <nav>
             <p>"Hi"</p>
             </nav>
+
+            <Login/>
 
             <main>
                 <Routes fallback=|| "This page could not be found.">
