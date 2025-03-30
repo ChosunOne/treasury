@@ -62,7 +62,10 @@ pub mod user_api;
 
 #[cfg(feature = "ssr")]
 mod ssr {
+    use crate::app::shell;
+
     use super::*;
+    use leptos_axum::file_and_error_handler;
     use ssr_imports::*;
 
     static CORS_ALLOWED_ORIGIN: OnceLock<String> = OnceLock::new();
@@ -179,7 +182,7 @@ mod ssr {
             let state = AppState {
                 connection_pool,
                 enforcer,
-                leptos_options,
+                leptos_options: leptos_options.clone(),
                 oauth_client,
             };
 
@@ -193,7 +196,11 @@ mod ssr {
             let swagger = SwaggerUi::new("/docs").url("/private/api.json", DocsApi::openapi());
             Router::new()
                 .merge(swagger)
-                .leptos_routes(&state, routes, App)
+                .leptos_routes(&state, routes, move || {
+                    let leptos_options = leptos_options.clone();
+                    shell(leptos_options.clone())
+                })
+                .fallback(file_and_error_handler::<AppState, _>(shell))
                 .nest("/api/accounts", AccountApi::router(state.clone()))
                 .nest("/api/assets", AssetApi::router(state.clone()))
                 .nest("/api/transactions", TransactionApi::router(state.clone()))

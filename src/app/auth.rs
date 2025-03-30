@@ -1,4 +1,4 @@
-use leptos::{prelude::*, task::spawn_local};
+use leptos::{leptos_dom::logging::console_log, prelude::*, task::spawn_local};
 
 use crate::api::ApiError;
 
@@ -13,7 +13,11 @@ pub mod ssr_imports {
     pub use tracing::{error, warn};
 }
 
-#[server]
+#[server(
+    name = Sso,
+    prefix = "/login",
+    endpoint = "/sso",
+)]
 pub async fn sso() -> Result<String, ApiError> {
     use ssr_imports::*;
 
@@ -95,11 +99,12 @@ pub async fn handle_auth_redirect(state: String, code: String) -> Result<(), Api
 
 #[component]
 pub fn Login() -> impl IntoView {
+    let auth = ServerAction::<Sso>::new();
+
     view! {
         <button on:click=move |_| {
-            spawn_local(async {
-                let _ = sso().await;
-            })
+            console_log("Clicked");
+            auth.dispatch(Sso {});
         }>
         "Login"
         </button>
