@@ -10,6 +10,28 @@ use crate::resource::{
 #[derive(Debug, Clone, Copy)]
 pub struct UserRepository;
 
+impl UserRepository {
+    pub async fn get_by_iss_and_sub(
+        &self,
+        mut session: PgTransaction<'_>,
+        iss: String,
+        sub: String,
+    ) -> Result<Option<User>, RepositoryError> {
+        let user = query_as!(
+            User,
+            r#"
+                SELECT * FROM "user"
+                WHERE iss = $1 AND sub = $2
+            "#,
+            iss,
+            sub
+        )
+        .fetch_optional(&mut *session)
+        .await?;
+        Ok(user)
+    }
+}
+
 impl GetRepository<UserId, User> for UserRepository {
     async fn get(
         &self,
@@ -19,8 +41,8 @@ impl GetRepository<UserId, User> for UserRepository {
         let user = query_as!(
             User,
             r#"
-            SELECT * FROM "user"
-            WHERE id = $1
+                SELECT * FROM "user"
+                WHERE id = $1
             "#,
             id.0,
         )
@@ -71,9 +93,9 @@ impl CreateRepository<UserCreate, User> for UserRepository {
         let new_user = query_as!(
             User,
             r#"
-            INSERT INTO "user" (name, email, iss, sub) 
-            VALUES ($1, $2, $3, $4) 
-            RETURNING *
+                INSERT INTO "user" (name, email, iss, sub) 
+                VALUES ($1, $2, $3, $4) 
+                RETURNING *
             "#,
             create_model.name,
             create_model.email,
@@ -96,10 +118,10 @@ impl UpdateRepository<User> for UserRepository {
         let updated_user = query_as!(
             User,
             r#"
-            UPDATE "user"
-            SET name = $2, email = $3
-            WHERE id = $1
-            RETURNING *
+                UPDATE "user"
+                SET name = $2, email = $3
+                WHERE id = $1
+                RETURNING *
             "#,
             model.id.0,
             model.name,
@@ -121,9 +143,9 @@ impl DeleteRepository<UserId, User> for UserRepository {
         let deleted_user = query_as!(
             User,
             r#"
-            DELETE FROM "user"
-            WHERE id = $1
-            RETURNING *
+                DELETE FROM "user"
+                WHERE id = $1
+                RETURNING *
             "#,
             id.0
         )

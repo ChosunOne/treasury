@@ -1,4 +1,4 @@
-use leptos::{leptos_dom::logging::console_log, prelude::*};
+use leptos::prelude::*;
 use leptos_meta::{MetaTags, provide_meta_context};
 use leptos_router::{
     components::{ParentRoute, Route, Router, Routes},
@@ -8,7 +8,7 @@ use leptos_router::{
 use crate::app::{
     accounts::{AccountDetail, Accounts, NoAccount},
     assets::{AssetDetail, Assets, NoAsset},
-    auth::Login,
+    auth::{HandleAuth, Login},
     home::Home,
     institutions::{InstitutionDetail, Institutions, NoInstitution},
     transactions::{NoTransaction, TransactionDetail, Transactions},
@@ -41,9 +41,18 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct AuthToken(pub RwSignal<Option<String>>);
+#[derive(Clone, Debug)]
+pub struct RefreshToken(pub RwSignal<Option<String>>);
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+    let auth_token = RwSignal::<Option<String>, _>::new(None);
+    let refresh_token = RwSignal::<Option<String>, _>::new(None);
+    provide_context(AuthToken(auth_token));
+    provide_context(RefreshToken(refresh_token));
 
     view! {
         <Router>
@@ -55,6 +64,7 @@ pub fn App() -> impl IntoView {
 
             <main>
                 <Routes fallback=|| "This page could not be found.">
+                    <Route path=path!("/oauth2-redirect") view=HandleAuth/>
                     <Route path=path!("/home") view=Home/>
                     <ParentRoute path=path!("/home/accounts") view=Accounts>
                         <Route path=path!(":id") view=AccountDetail/>

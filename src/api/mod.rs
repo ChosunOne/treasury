@@ -77,7 +77,7 @@ mod ssr {
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub struct IDToken {
-        id_token: String,
+        pub id_token: String,
     }
 
     impl ExtraTokenFields for IDToken {}

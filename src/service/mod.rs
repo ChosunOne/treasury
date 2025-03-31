@@ -14,7 +14,7 @@ use thiserror::Error;
 
 use crate::resource::RepositoryError;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum ServiceError {
     #[error("User is already registered.")]
     AlreadyRegistered,
@@ -23,7 +23,7 @@ pub enum ServiceError {
     #[error("Unhandled repository error: {0}")]
     UnhandledRepositoryError(RepositoryError),
     #[error("Unhandled sqlx error: {0}")]
-    UnhandledSqlxError(#[from] sqlx::Error),
+    UnhandledSqlxError(String),
     #[error("Unauthorized")]
     Unauthorized,
 }
@@ -34,6 +34,12 @@ impl From<RepositoryError> for ServiceError {
             RepositoryError::NotFound => Self::NotFound,
             e => Self::UnhandledRepositoryError(e),
         }
+    }
+}
+
+impl From<sqlx::Error> for ServiceError {
+    fn from(value: sqlx::Error) -> Self {
+        Self::UnhandledSqlxError(format!("{value}"))
     }
 }
 

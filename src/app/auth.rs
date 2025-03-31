@@ -1,12 +1,27 @@
-use leptos::{leptos_dom::logging::console_log, prelude::*, task::spawn_local};
-
-use crate::api::ApiError;
+use crate::{
+    api::ApiError,
+    app::{AuthToken, RefreshToken},
+};
+use leptos::{prelude::*, reactive::traits::Get, server_fn::codec::GetUrl};
+use leptos_router::{
+    NavigateOptions,
+    hooks::{use_navigate, use_query},
+    params::Params,
+};
 
 #[cfg(feature = "ssr")]
 pub mod ssr_imports {
     pub use crate::{
         api::AppState,
-        resource::{CreateRepository, GetRepository, csrf_token_repository::CsrfTokenRepository},
+        authentication::{
+            authenticated_token::{AuthenticatedToken, Claims},
+            authenticator::Authenticator,
+        },
+        model::user::UserCreate,
+        resource::{
+            CreateRepository, DeleteRepository, csrf_token_repository::CsrfTokenRepository,
+            user_repository::UserRepository,
+        },
     };
     pub use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
     pub use reqwest::redirect::Policy;
@@ -17,6 +32,7 @@ pub mod ssr_imports {
     name = Sso,
     prefix = "/login",
     endpoint = "/sso",
+    input = GetUrl,
 )]
 pub async fn sso() -> Result<String, ApiError> {
     use ssr_imports::*;
@@ -30,6 +46,7 @@ pub async fn sso() -> Result<String, ApiError> {
             Scope::new("email".into()),
             Scope::new("groups".into()),
             Scope::new("profile".into()),
+            Scope::new("offline_access".into()),
         ])
         .url();
 
@@ -51,14 +68,22 @@ pub async fn sso() -> Result<String, ApiError> {
     Ok(authorize_url.into())
 }
 
-#[server]
-pub async fn handle_auth_redirect(state: String, code: String) -> Result<(), ApiError> {
+#[server(
+    name = SsoRedirect,
+    prefix = "/login",
+    endpoint = "/oauth2-redirect",
+    input = GetUrl,
+)]
+pub async fn handle_auth_redirect(
+    state: String,
+    code: String,
+) -> Result<(String, String), ApiError> {
     use ssr_imports::*;
     let app_state = expect_context::<AppState>();
     let oauth_client = app_state.oauth_client;
     let token_repository = CsrfTokenRepository;
     token_repository
-        .get(
+        .delete(
             app_state.connection_pool.begin().await.map_err(|e| {
                 error!("{e}");
                 ApiError::ServerError
@@ -85,28 +110,127 @@ pub async fn handle_auth_redirect(state: String, code: String) -> Result<(), Api
             ApiError::ServerError
         })?;
 
-    let access_token = token_response.access_token().secret();
+    let access_token = token_response.access_token().secret().clone();
     let refresh_token = token_response
         .refresh_token()
-        .expect("Missing refresh token")
-        .secret();
-    let id_token = token_response.extra_fields();
-    warn!("Access Token: {access_token:?}");
-    warn!("Refresh Token: {refresh_token:?}");
-    warn!("ID Token: {id_token:?}");
-    todo!()
+        .ok_or_else(|| {
+            error!("Missing refresh token.");
+            ApiError::ServerError
+        })?
+        .secret()
+        .clone();
+    let id_token = token_response.extra_fields().id_token.clone();
+    let auth_token = Authenticator::authenticate(&format!("Bearer {id_token}"))
+        .await
+        .map_err(|e| {
+            error!("{e}");
+            ApiError::ServerError
+        })?;
+    if !auth_token.email_verified() {
+        return Err(ApiError::ClientError(
+            "Email address is not verified.".into(),
+        ));
+    }
+
+    let user_repository = UserRepository;
+    let user = user_repository
+        .get_by_iss_and_sub(
+            app_state.connection_pool.begin().await.map_err(|e| {
+                error!("{e}");
+                ApiError::ServerError
+            })?,
+            auth_token.iss().into(),
+            auth_token.sub().into(),
+        )
+        .await
+        .map_err(|e| {
+            error!("{e}");
+            ApiError::ServerError
+        })?;
+
+    if user.is_none() {
+        // Register a new user
+        let _ = user_repository
+            .create(
+                app_state.connection_pool.begin().await.map_err(|e| {
+                    error!("{e}");
+                    ApiError::ServerError
+                })?,
+                UserCreate {
+                    name: auth_token
+                        .preferred_username()
+                        .or(auth_token.name())
+                        .cloned()
+                        .unwrap_or("".to_owned()),
+                    email: auth_token.email().into(),
+                    sub: auth_token.sub().into(),
+                    iss: auth_token.iss().into(),
+                },
+            )
+            .await
+            .map_err(|e| {
+                error!("{e}");
+                ApiError::ServerError
+            })?;
+    }
+
+    Ok((access_token, refresh_token))
 }
 
 #[component]
 pub fn Login() -> impl IntoView {
     let auth = ServerAction::<Sso>::new();
 
+    Effect::new(move |_| {
+        let value = auth.value();
+        if let Some(Ok(ref redirect)) = *value.get() {
+            window().location().set_href(redirect).unwrap();
+        }
+    });
+
     view! {
         <button on:click=move |_| {
-            console_log("Clicked");
             auth.dispatch(Sso {});
         }>
         "Login"
         </button>
     }
+}
+
+#[derive(Params, Debug, PartialEq, Clone)]
+struct OAuthParams {
+    pub code: Option<String>,
+    pub state: Option<String>,
+}
+
+#[component]
+pub fn HandleAuth() -> impl IntoView {
+    let handle_sso_redirect = ServerAction::<SsoRedirect>::new();
+    let query = use_query::<OAuthParams>();
+    let navigate = use_navigate();
+
+    let rw_auth_token = expect_context::<AuthToken>().0;
+    let rw_refresh_token = expect_context::<RefreshToken>().0;
+
+    Effect::new(move |_| {
+        let value = handle_sso_redirect.value();
+        if let Some(Ok((ref auth_token, ref refresh_token))) = *value.get() {
+            rw_auth_token.set(Some(auth_token.clone()));
+            rw_refresh_token.set(Some(refresh_token.clone()));
+            navigate("/home", NavigateOptions::default());
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Ok(OAuthParams { code, state }) = query.get_untracked() {
+            handle_sso_redirect.dispatch(SsoRedirect {
+                state: state.unwrap(),
+                code: code.unwrap(),
+            });
+        } else {
+            leptos::logging::log!("Failed to parse oauth params");
+        }
+    });
+
+    view! {}
 }

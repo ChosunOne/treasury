@@ -12,17 +12,17 @@ use thiserror::Error;
 
 pub const MAX_LIMIT: i64 = 100;
 
-#[derive(Error, Debug, Display)]
+#[derive(Error, Debug, Display, Clone)]
 pub enum RepositoryError {
     NotFound,
-    Sqlx(sqlx::Error),
+    Sqlx(String),
 }
 
 impl From<sqlx::Error> for RepositoryError {
     fn from(value: sqlx::Error) -> Self {
         match value {
             sqlx::Error::RowNotFound => Self::NotFound,
-            e => Self::Sqlx(e),
+            e => Self::Sqlx(format!("{e}")),
         }
     }
 }

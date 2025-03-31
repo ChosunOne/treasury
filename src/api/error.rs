@@ -19,7 +19,7 @@ mod ssr_imports {
 #[cfg(feature = "ssr")]
 use ssr_imports::*;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum ApiError {
     #[cfg(feature = "ssr")]
     #[error("Invalid JSON in request.")]

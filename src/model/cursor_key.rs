@@ -53,7 +53,7 @@ pub struct CursorKey {
     pub key_data: Vec<u8>,
 }
 
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Error, Serialize, Deserialize, Clone, Copy)]
 pub enum EncryptionError {
     #[error("Invalid length.")]
     InvalidLength,

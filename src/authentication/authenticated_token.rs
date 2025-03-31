@@ -12,6 +12,8 @@ pub struct Claims {
     email_verified: bool,
     sub: String,
     iss: String,
+    name: Option<String>,
+    preferred_username: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +45,14 @@ impl AuthenticatedToken {
 
     pub fn groups(&self) -> &[String] {
         &self.claims.groups
+    }
+
+    pub fn name(&self) -> Option<&String> {
+        self.claims.name.as_ref()
+    }
+
+    pub fn preferred_username(&self) -> Option<&String> {
+        self.claims.preferred_username.as_ref()
     }
 
     pub fn add_group(&mut self, group: String) {

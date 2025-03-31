@@ -76,6 +76,7 @@ staticClients:
       - 'http://127.0.0.1:8080/docs/oauth2-redirect'
       - 'http://localhost:8080/docs/oauth2-redirect'
       - 'http://localhost:8080/docs/oauth2-redirect.html'
+      - 'http://127.0.0.1:8080/oauth2-redirect'
     name: 'Treasury'
     secret: {{ .Env.DEX_STATIC_CLIENT_SECRET }}
 
