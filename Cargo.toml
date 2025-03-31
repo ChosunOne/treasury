@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 aes-gcm-siv = {version = "0.11.1", optional = true}
 async-trait = {version = "^0.1.88", optional = true}
 axum = {version = "^0.8.1", features = ["http2", "macros"], optional=true}
-axum-extra = {version = "^0.10.0", features = ["tracing"], optional=true}
+axum-extra = {version = "^0.10.1", features = ["tracing", "cookie"], optional=true}
 base64 = {version = "0.22.1", optional = true}
 cached = {version = "^0.55.1", features = ["async"], optional = true}
 casbin = {version = "^2.10.1", optional = true}
@@ -34,6 +34,7 @@ serde = {version = "^1.0.219", features = ["derive"]}
 serde_json = {version = "^1.0.140", features = ["preserve_order"]}
 sqlx = {version = "^0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"], optional = true}
 thiserror = "^2.0.12"
+time = {version = "^0.3.41", optional = true}
 tokio = {version = "^1.44.1", features = ["full"], optional = true}
 tower = {version = "^0.5.2", optional = true}
 tower-http = {version = "^0.6.2", features = ["trace", "auth", "cors", "compression-gzip", "timeout"], optional = true}
@@ -75,6 +76,7 @@ ssr = [
     "dep:oauth2",
     "dep:rand",
     "dep:sqlx",
+    "dep:time",
     "dep:tokio",
     "dep:tower",
     "dep:tower-http",

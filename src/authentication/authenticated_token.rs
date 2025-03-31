@@ -12,6 +12,8 @@ pub struct Claims {
     email_verified: bool,
     sub: String,
     iss: String,
+    iat: i64,
+    exp: i64,
     name: Option<String>,
     preferred_username: Option<String>,
 }
@@ -49,6 +51,14 @@ impl AuthenticatedToken {
 
     pub fn name(&self) -> Option<&String> {
         self.claims.name.as_ref()
+    }
+
+    pub fn iat(&self) -> i64 {
+        self.claims.iat
+    }
+
+    pub fn exp(&self) -> i64 {
+        self.claims.exp
     }
 
     pub fn preferred_username(&self) -> Option<&String> {

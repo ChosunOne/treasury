@@ -23,6 +23,12 @@ pub mod ssr_imports {
             user_repository::UserRepository,
         },
     };
+    pub use axum_extra::extract::cookie::{Cookie, SameSite};
+    pub use http::{
+        HeaderValue,
+        header::{SET_COOKIE, X_CONTENT_TYPE_OPTIONS},
+    };
+    pub use leptos_axum::{ResponseOptions, extract};
     pub use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
     pub use reqwest::redirect::Policy;
     pub use tracing::{error, warn};
@@ -74,10 +80,7 @@ pub async fn sso() -> Result<String, ApiError> {
     endpoint = "/oauth2-redirect",
     input = GetUrl,
 )]
-pub async fn handle_auth_redirect(
-    state: String,
-    code: String,
-) -> Result<(String, String), ApiError> {
+pub async fn handle_auth_redirect(state: String, code: String) -> Result<String, ApiError> {
     use ssr_imports::*;
     let app_state = expect_context::<AppState>();
     let oauth_client = app_state.oauth_client;
@@ -174,7 +177,24 @@ pub async fn handle_auth_redirect(
             })?;
     }
 
-    Ok((access_token, refresh_token))
+    let response_opts = expect_context::<ResponseOptions>();
+    let cookie: Cookie = Cookie::build(("refresh_token", refresh_token))
+        .path("/")
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .http_only(true)
+        .max_age(time::Duration::seconds(auth_token.exp() - auth_token.iat()))
+        .into();
+    response_opts.insert_header(
+        SET_COOKIE,
+        HeaderValue::from_str(&cookie.to_string()).map_err(|e| {
+            error!("{e}");
+            ApiError::ServerError
+        })?,
+    );
+    response_opts.append_header(X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
+
+    Ok(access_token)
 }
 
 #[component]
@@ -210,13 +230,11 @@ pub fn HandleAuth() -> impl IntoView {
     let navigate = use_navigate();
 
     let rw_auth_token = expect_context::<AuthToken>().0;
-    let rw_refresh_token = expect_context::<RefreshToken>().0;
 
     Effect::new(move |_| {
         let value = handle_sso_redirect.value();
-        if let Some(Ok((ref auth_token, ref refresh_token))) = *value.get() {
+        if let Some(Ok(ref auth_token)) = *value.get() {
             rw_auth_token.set(Some(auth_token.clone()));
-            rw_refresh_token.set(Some(refresh_token.clone()));
             navigate("/home", NavigateOptions::default());
         }
     });
@@ -233,4 +251,13 @@ pub fn HandleAuth() -> impl IntoView {
     });
 
     view! {}
+}
+
+#[server(
+    name = SsoRefresh,
+    prefix = "/login",
+    endpoint = "/refresh",
+)]
+pub async fn refresh_token() -> Result<(), ApiError> {
+    todo!()
 }
