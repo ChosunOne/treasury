@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            DELETE FROM \"user\"\n            WHERE id = $1\n            RETURNING *\n            ",
+  "query": "\n            INSERT INTO account (name, institution_id, user_id)\n            VALUES ($1, $2, $3)\n            RETURNING *\n            ",
   "describe": {
     "columns": [
       {
@@ -20,17 +20,24 @@
       },
       {
         "ordinal": 3,
-        "name": "name",
-        "type_info": "Varchar"
+        "name": "user_id",
+        "type_info": "Uuid"
       },
       {
         "ordinal": 4,
-        "name": "email",
+        "name": "institution_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "name",
         "type_info": "Varchar"
       }
     ],
     "parameters": {
       "Left": [
+        "Varchar",
+        "Uuid",
         "Uuid"
       ]
     },
@@ -39,8 +46,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "34d47aec412763c5afba5c0dc9898358c483de5b41bc7674bac0b9ea4629f1b2"
+  "hash": "6d9c0d6f6988d9294b72846b7bd03894f0faef70213597d140eb3f74c5e22ab3"
 }

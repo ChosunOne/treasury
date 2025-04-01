@@ -1,12 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT * FROM \"user\" \n            WHERE id = $1\n            ",
+  "query": "\n            SELECT * FROM cursor_key \n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Uuid"
+        "type_info": "Int4"
       },
       {
         "ordinal": 1,
@@ -20,27 +20,27 @@
       },
       {
         "ordinal": 3,
-        "name": "name",
-        "type_info": "Varchar"
+        "name": "expires_at",
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 4,
-        "name": "email",
-        "type_info": "Varchar"
+        "name": "key_data",
+        "type_info": "Bytea"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Int4"
       ]
     },
     "nullable": [
       false,
       false,
       false,
-      false,
+      true,
       false
     ]
   },
-  "hash": "fd9b75f476b8d71d04084d69421e05cc5b8ae94478ce7f2284b700b7a27fceaa"
+  "hash": "dfc2eb10a74e114691b3c97216a511b497b60d75797a4853659d4a9d66d887b3"
 }

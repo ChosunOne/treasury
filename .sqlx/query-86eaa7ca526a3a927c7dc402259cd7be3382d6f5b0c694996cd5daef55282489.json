@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE \"user\"\n            SET name = $2, email = $3\n            WHERE id = $1\n            RETURNING *\n            ",
+  "query": "\n                INSERT INTO \"user\" (name, email, iss, sub) \n                VALUES ($1, $2, $3, $4) \n                RETURNING *\n            ",
   "describe": {
     "columns": [
       {
@@ -27,11 +27,22 @@
         "ordinal": 4,
         "name": "email",
         "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "iss",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "sub",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
+        "Varchar",
+        "Varchar",
         "Varchar",
         "Varchar"
       ]
@@ -41,8 +52,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "6a35477bc7b95338a358a756fb9b121f3c6cd0f726bb82faeda45b370850d065"
+  "hash": "86eaa7ca526a3a927c7dc402259cd7be3382d6f5b0c694996cd5daef55282489"
 }
