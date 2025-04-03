@@ -1,6 +1,6 @@
 use crate::{
     api::ApiError,
-    app::{AuthToken, RefreshToken},
+    app::{AuthToken, ExpiresIn},
 };
 use leptos::{prelude::*, reactive::traits::Get, server_fn::codec::GetUrl};
 use leptos_router::{
@@ -8,6 +8,8 @@ use leptos_router::{
     hooks::{use_navigate, use_query},
     params::Params,
 };
+pub const REFRESH_TOKEN_MAX_AGE: i64 = 86400;
+pub const REFRESH_TOKEN_INTERVAL: i64 = 3600;
 
 #[cfg(feature = "ssr")]
 pub mod ssr_imports {
@@ -23,7 +25,7 @@ pub mod ssr_imports {
             user_repository::UserRepository,
         },
     };
-    pub use axum_extra::extract::cookie::{Cookie, SameSite};
+    pub use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
     pub use http::{
         HeaderValue,
         header::{SET_COOKIE, X_CONTENT_TYPE_OPTIONS},
@@ -31,7 +33,7 @@ pub mod ssr_imports {
     pub use leptos_axum::{ResponseOptions, extract};
     pub use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
     pub use reqwest::redirect::Policy;
-    pub use tracing::{error, warn};
+    pub use tracing::{debug, error, warn};
 }
 
 #[server(
@@ -80,7 +82,7 @@ pub async fn sso() -> Result<String, ApiError> {
     endpoint = "/oauth2-redirect",
     input = GetUrl,
 )]
-pub async fn handle_auth_redirect(state: String, code: String) -> Result<String, ApiError> {
+pub async fn handle_auth_redirect(state: String, code: String) -> Result<(String, i64), ApiError> {
     use ssr_imports::*;
     let app_state = expect_context::<AppState>();
     let oauth_client = app_state.oauth_client;
@@ -177,13 +179,18 @@ pub async fn handle_auth_redirect(state: String, code: String) -> Result<String,
             })?;
     }
 
+    let expires_in = token_response
+        .expires_in()
+        .expect("Missing `expires_in` in response")
+        .as_secs() as i64;
+
     let response_opts = expect_context::<ResponseOptions>();
     let cookie: Cookie = Cookie::build(("refresh_token", refresh_token))
         .path("/")
         .secure(true)
         .same_site(SameSite::Strict)
         .http_only(true)
-        .max_age(time::Duration::seconds(auth_token.exp() - auth_token.iat()))
+        .max_age(time::Duration::seconds(REFRESH_TOKEN_MAX_AGE))
         .into();
     response_opts.insert_header(
         SET_COOKIE,
@@ -194,7 +201,7 @@ pub async fn handle_auth_redirect(state: String, code: String) -> Result<String,
     );
     response_opts.append_header(X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
 
-    Ok(access_token)
+    Ok((access_token, expires_in))
 }
 
 #[component]
@@ -230,11 +237,13 @@ pub fn HandleAuth() -> impl IntoView {
     let navigate = use_navigate();
 
     let rw_auth_token = expect_context::<AuthToken>().0;
+    let rw_expires_in = expect_context::<ExpiresIn>().0;
 
     Effect::new(move |_| {
         let value = handle_sso_redirect.value();
-        if let Some(Ok(ref auth_token)) = *value.get() {
+        if let Some(Ok((ref auth_token, expires_in))) = *value.get() {
             rw_auth_token.set(Some(auth_token.clone()));
+            rw_expires_in.set(expires_in);
             navigate("/home", NavigateOptions::default());
         }
     });
@@ -258,6 +267,61 @@ pub fn HandleAuth() -> impl IntoView {
     prefix = "/login",
     endpoint = "/refresh",
 )]
-pub async fn refresh_token() -> Result<(), ApiError> {
-    todo!()
+pub async fn refresh_token() -> Result<(String, i64), ApiError> {
+    use ssr_imports::*;
+
+    let cookie_jar = extract::<CookieJar>().await?;
+
+    let refresh_token = oauth2::RefreshToken::new(
+        cookie_jar
+            .get("refresh_token")
+            .ok_or(ApiError::Forbidden)?
+            .value()
+            .to_string(),
+    );
+
+    let oauth_client = expect_context::<AppState>().oauth_client;
+    let http_client = reqwest::ClientBuilder::new()
+        .redirect(Policy::none())
+        .build()
+        .expect("Failed to build reqwest client");
+
+    let token_response = oauth_client
+        .exchange_refresh_token(&refresh_token)
+        .request_async(&http_client)
+        .await
+        .map_err(|e| {
+            error!("{e}");
+            ApiError::ServerError
+        })?;
+
+    let access_token = token_response.access_token().secret().clone();
+    let expires_in = token_response
+        .expires_in()
+        .expect("Missing `expires_in` in response")
+        .as_secs() as i64;
+    let refresh_token = token_response
+        .refresh_token()
+        .expect("Missing refresh token in response.")
+        .secret();
+
+    let cookie: Cookie = Cookie::build(("refresh_token", refresh_token))
+        .path("/")
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .http_only(true)
+        .max_age(time::Duration::seconds(REFRESH_TOKEN_MAX_AGE))
+        .into();
+
+    let response_opts = expect_context::<ResponseOptions>();
+    response_opts.insert_header(
+        SET_COOKIE,
+        HeaderValue::from_str(&cookie.to_string()).map_err(|e| {
+            error!("{e}");
+            ApiError::ServerError
+        })?,
+    );
+    response_opts.append_header(X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
+
+    Ok((access_token, expires_in))
 }

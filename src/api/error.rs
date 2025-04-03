@@ -37,6 +37,8 @@ pub enum ApiError {
     ServerError,
     #[error("{0}")]
     ClientError(String),
+    #[error("Forbidden")]
+    Forbidden,
 }
 
 #[cfg(not(feature = "ssr"))]
@@ -50,6 +52,10 @@ impl From<&ApiError> for ApiErrorResponse {
             ApiError::ClientError(message) => Self {
                 code: 4000,
                 message: message.clone(),
+            },
+            ApiError::Forbidden => Self {
+                code: 4030,
+                message: "Forbbiden.".into(),
             },
         }
     }
@@ -88,17 +94,18 @@ mod ssr {
     impl ApiError {
         pub fn status(&self) -> StatusCode {
             match self {
-                ApiError::JsonRejection => StatusCode::BAD_REQUEST,
-                ApiError::NotFound => StatusCode::NOT_FOUND,
-                ApiError::Service(service_error) => match service_error {
+                Self::JsonRejection => StatusCode::BAD_REQUEST,
+                Self::NotFound => StatusCode::NOT_FOUND,
+                Self::Service(service_error) => match service_error {
                     ServiceError::AlreadyRegistered => StatusCode::CONFLICT,
                     ServiceError::NotFound => StatusCode::NOT_FOUND,
                     ServiceError::Unauthorized => StatusCode::FORBIDDEN,
                     _ => StatusCode::INTERNAL_SERVER_ERROR,
                 },
-                ApiError::Encryption(_) => StatusCode::INTERNAL_SERVER_ERROR,
-                ApiError::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
-                ApiError::ClientError(_) => StatusCode::BAD_REQUEST,
+                Self::Encryption(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                Self::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
+                Self::ClientError(_) => StatusCode::BAD_REQUEST,
+                Self::Forbidden => StatusCode::FORBIDDEN,
             }
         }
     }
@@ -181,6 +188,10 @@ mod ssr {
                 ApiError::ClientError(message) => Self {
                     code: BAD_REQUEST,
                     message: message.clone(),
+                },
+                ApiError::Forbidden => Self {
+                    code: FORBIDDEN,
+                    message: "Forbidden".into(),
                 },
                 e => {
                     error!("{e}");
