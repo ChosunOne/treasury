@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use leptos_meta::{MetaTags, provide_meta_context};
+use leptos_meta::{MetaTags, Title, provide_meta_context};
 use leptos_router::{
     components::{ParentRoute, Route, Router, Routes},
     path,
@@ -8,7 +8,7 @@ use leptos_router::{
 use crate::app::{
     accounts::{AccountDetail, Accounts, NoAccount},
     assets::{AssetDetail, Assets, NoAsset},
-    auth::{HandleAuth, Login, REFRESH_TOKEN_INTERVAL, REFRESH_TOKEN_MAX_AGE, SsoRefresh},
+    auth::{HandleAuth, Login, Logout, SsoRefresh},
     home::Home,
     institutions::{InstitutionDetail, Institutions, NoInstitution},
     transactions::{NoTransaction, TransactionDetail, Transactions},
@@ -69,15 +69,21 @@ pub fn App() -> impl IntoView {
                     refresh_token.dispatch(SsoRefresh {});
                 },
                 std::time::Duration::from_secs(
-                    expires_in
-                        .checked_sub(REFRESH_TOKEN_MAX_AGE - REFRESH_TOKEN_INTERVAL)
-                        .unwrap_or_default() as u64,
+                    expires_in.checked_sub(30).unwrap_or_default() as u64
                 ),
             )
             .unwrap();
             Some(handle)
         } else {
-            None
+            // See if we can get a token from an extant refresh token
+            let handle = set_timeout_with_handle(
+                move || {
+                    refresh_token.dispatch(SsoRefresh {});
+                },
+                std::time::Duration::from_secs(0),
+            )
+            .unwrap();
+            Some(handle)
         }
     });
 
@@ -90,12 +96,15 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
+        <Title text="Treasury"/>
         <Router>
             <nav>
             <p>"Hi"</p>
             </nav>
 
-            <Login/>
+            <Show when=move || rw_auth_token.get().is_some() fallback=Login>
+                <Logout/>
+            </Show>
 
             <main>
                 <Routes fallback=|| "This page could not be found.">

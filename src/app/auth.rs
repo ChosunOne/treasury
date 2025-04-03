@@ -33,6 +33,7 @@ pub mod ssr_imports {
     pub use leptos_axum::{ResponseOptions, extract};
     pub use oauth2::{AuthorizationCode, CsrfToken, Scope, TokenResponse};
     pub use reqwest::redirect::Policy;
+    pub use time::{Date, OffsetDateTime};
     pub use tracing::{debug, error, warn};
 }
 
@@ -324,4 +325,80 @@ pub async fn refresh_token() -> Result<(String, i64), ApiError> {
     response_opts.append_header(X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
 
     Ok((access_token, expires_in))
+}
+
+#[server(
+    name = SsoLogout,
+    prefix = "/logout",
+    endpoint = "/sso"
+)]
+pub async fn logout() -> Result<(), ApiError> {
+    use ssr_imports::*;
+
+    // Use the refresh token to invalidate it.
+    let cookie_jar = extract::<CookieJar>().await?;
+
+    if let Some(rt) = cookie_jar.get("refresh_token") {
+        let refresh_token = oauth2::RefreshToken::new(rt.value().to_string());
+
+        let oauth_client = expect_context::<AppState>().oauth_client;
+        let http_client = reqwest::ClientBuilder::new()
+            .redirect(Policy::none())
+            .build()
+            .expect("Failed to build reqwest client");
+
+        let _ = oauth_client
+            .exchange_refresh_token(&refresh_token)
+            .request_async(&http_client)
+            .await
+            .map_err(|e| {
+                error!("{e}");
+                ApiError::ServerError
+            })
+            .ok();
+    }
+
+    let response_opts = expect_context::<ResponseOptions>();
+    let cookie: Cookie = Cookie::build(("refresh_token", ""))
+        .path("/")
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .http_only(true)
+        .expires(OffsetDateTime::new_utc(
+            Date::from_calendar_date(1970, time::Month::January, 1).expect("Invalid date"),
+            time::Time::from_hms(0, 0, 0).expect("Invalid time"),
+        ))
+        .into();
+    response_opts.insert_header(
+        SET_COOKIE,
+        HeaderValue::from_str(&cookie.to_string()).map_err(|e| {
+            error!("{e}");
+            ApiError::ServerError
+        })?,
+    );
+
+    Ok(())
+}
+
+#[component]
+pub fn Logout() -> impl IntoView {
+    let sso_logout = ServerAction::<SsoLogout>::new();
+    let rw_auth_token = expect_context::<AuthToken>().0;
+    let navigate = use_navigate();
+
+    Effect::new(move |_| {
+        let value = sso_logout.value();
+        if let Some(Ok(())) = *value.get() {
+            rw_auth_token.set(None);
+            navigate("/home", NavigateOptions::default());
+        }
+    });
+
+    view! {
+        <button on:click=move |_| {
+            sso_logout.dispatch(SsoLogout {});
+        }>
+        "Logout"
+        </button>
+    }
 }
