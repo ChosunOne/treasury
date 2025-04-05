@@ -217,7 +217,7 @@ pub fn Login() -> impl IntoView {
     });
 
     view! {
-        <button on:click=move |_| {
+        <button class="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 font-medium transition hover:bg-gray-300" on:click=move |_| {
             auth.dispatch(Sso {});
         }>
         "Login"
@@ -395,7 +395,7 @@ pub fn Logout() -> impl IntoView {
     });
 
     view! {
-        <button on:click=move |_| {
+        <button class="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 font-medium transition hover:bg-gray-300" on:click=move |_| {
             sso_logout.dispatch(SsoLogout {});
         }>
         "Logout"

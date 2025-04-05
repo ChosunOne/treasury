@@ -1,0 +1,27 @@
+{
+  "name": "treasury",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/ChosunOne/treasury#readme",
+  "bugs": {
+    "url": "https://github.com/ChosunOne/treasury/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChosunOne/treasury.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tailwindcss -i ./input.css -o ./style/output.css",
+    "watch": "npx tailwindcss -i ./input.css -o ./style/output.css --watch"
+  },
+  "dependencies": {
+    "tailwindcss": "^4.1.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.3"
+  }
+}

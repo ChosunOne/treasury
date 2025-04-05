@@ -32,6 +32,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <AutoReload options=options.clone() />
                 <HydrationScripts options/>
+                <link rel="stylesheet" id="leptos" href="/pkg/treasury.css"/>
                 <MetaTags/>
             </head>
             <body>
@@ -98,13 +99,20 @@ pub fn App() -> impl IntoView {
     view! {
         <Title text="Treasury"/>
         <Router>
-            <nav>
-            <p>"Hi"</p>
+            <nav class="mt-1 mb-1 ml-1 flex flex-row rounded-lg">
+                <Show when=move || rw_auth_token.get().is_some() fallback=|| view! {
+                    <div class="flex-auto"></div>
+                    <Login/>
+                }>
+                    <button class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer">"Home"</button>
+                    <button class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer">"Accounts"</button>
+                    <button class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer">"Transactions"</button>
+                    <div class="flex-auto"></div>
+                    <button class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer">"Profile Options"</button>
+                    <Logout/>
+                </Show>
             </nav>
 
-            <Show when=move || rw_auth_token.get().is_some() fallback=Login>
-                <Logout/>
-            </Show>
 
             <main>
                 <Routes fallback=|| "This page could not be found.">

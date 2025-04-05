@@ -25,7 +25,7 @@ indexmap = {version = "^2.8.0", optional = true}
 jsonwebtoken = {version = "^9.3.1", optional = true}
 leptos = {git = "https://github.com/leptos-rs/leptos", branch = "main"}
 leptos_axum = {git = "https://github.com/leptos-rs/leptos", branch = "main", optional = true}
-leptos_meta =  {git = "https://github.com/leptos-rs/leptos", branch = "main"}
+leptos_meta = {git = "https://github.com/leptos-rs/leptos", branch = "main"}
 leptos_router = {git = "https://github.com/leptos-rs/leptos", branch = "main"}
 oauth2 = {version = "^5.0.0", optional = true}
 rand = {version = "^0.9.0", optional = true}
@@ -116,3 +116,4 @@ bin-default-features = false
 lib-features = ["hydrate"]
 lib-default-features = false
 lib-profile-release = "wasm-release"
+tailwind-input-file = "input.css"

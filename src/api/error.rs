@@ -71,6 +71,7 @@ impl Serialize for ApiError {
 }
 
 impl FromServerFnError for ApiError {
+    #[allow(unused_variables)]
     fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
         match value {
             ServerFnErrorErr::Request(e) => Self::ClientError(e),

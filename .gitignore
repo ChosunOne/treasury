@@ -1,3 +1,4 @@
 target
 .env
 .bacon-locations
+node_modules
