@@ -1,26 +1,8 @@
-use std::sync::Arc;
-
-use axum::{
-    RequestPartsExt, Router,
-    body::Body,
-    extract::{FromRequestParts, Path, Request, State},
-    middleware::from_fn_with_state,
-    response::IntoResponse,
-};
-use http::request::Parts;
-use leptos::{
-    prelude::{expect_context, provide_context},
-    server,
-    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
-};
-use leptos_axum::{extract, generate_request_and_parts, handle_server_fns_with_context};
-use serde::{Deserialize, Serialize};
-use tower::ServiceBuilder;
-use tower_http::auth::AsyncRequireAuthorizationLayer;
-use tracing::error;
-
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
+    api::{
+        Api, ApiError, ApiErrorResponse, AppState, client::ApiClient, extract_with_state,
+        set_user_groups,
+    },
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
     authorization::{
         PermissionConfig, PermissionSet,
@@ -40,6 +22,25 @@ use crate::{
         institution_service_factory::InstitutionServiceFactory,
     },
 };
+use axum::{
+    RequestPartsExt, Router,
+    body::Body,
+    extract::{FromRequestParts, Path, Request, State},
+    middleware::from_fn_with_state,
+    response::IntoResponse,
+};
+use http::request::Parts;
+use leptos::{
+    prelude::{expect_context, provide_context},
+    server,
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
+};
+use leptos_axum::{extract, generate_request_and_parts, handle_server_fns_with_context};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tower::ServiceBuilder;
+use tower_http::auth::AsyncRequireAuthorizationLayer;
+use tracing::error;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct PathInstitutionId {
@@ -105,7 +106,8 @@ impl FromRequestParts<AppState> for InstitutionApiState {
     prefix = "/api",
     endpoint = "/institutions",
     input = GetUrl,
-    output = Json
+    output = Json,
+    client = ApiClient,
 )]
 async fn get_list(
     #[server(flatten)]
@@ -145,6 +147,7 @@ async fn get_list(
     endpoint = "institutions/",
     input = GetUrl,
     output = Json,
+    client = ApiClient,
 )]
 async fn get() -> Result<InstitutionGetResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -173,7 +176,8 @@ async fn get() -> Result<InstitutionGetResponse, ApiError> {
     prefix = "/api",
     endpoint = "institutions",
     input = Json,
-    output = Json
+    output = Json,
+    client = ApiClient,
 )]
 async fn create(
     #[server(flatten)] create_request: CreateRequest,
@@ -208,6 +212,7 @@ async fn create(
     endpoint = "institutions/",
     input = PatchJson,
     output = PatchJson,
+    client = ApiClient,
 )]
 async fn update(
     #[server(flatten)] update_request: UpdateRequest,
@@ -243,7 +248,8 @@ async fn update(
     name = InstitutionApiDelete,
     prefix = "/api",
     endpoint = "institutions/",
-    input = DeleteUrl
+    input = DeleteUrl,
+    client = ApiClient,
 )]
 async fn delete() -> Result<DeleteResponse, ApiError> {
     let state = expect_context::<AppState>();

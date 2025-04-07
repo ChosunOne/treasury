@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(feature = "ssr")]
 mod ssr_imports {
@@ -35,21 +35,25 @@ pub mod institution;
 pub mod transaction;
 pub mod user;
 
-#[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "ssr", derive(IntoParams, ToSchema, Copy))]
-#[cfg_attr(feature = "ssr", into_params(parameter_in = Query))]
+#[cfg(feature = "ssr")]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, IntoParams, ToSchema, Copy)]
+#[into_params(parameter_in = Query)]
 pub struct Pagination {
     /// The maximum items to return
-    #[cfg_attr(feature = "ssr", param(value_type = i64, required = false))]
+    #[param(value_type = i64, required = false)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_items: Option<i64>,
     /// The request cursor
-    #[cfg_attr(feature = "ssr", param(value_type = String, required = false))]
-    #[cfg_attr(feature = "ssr", schema(value_type = String, required = false))]
+    #[param(value_type = String, required = false)]
+    #[schema(value_type = String, required = false)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "ssr")]
     pub cursor: Option<Cursor>,
-    #[cfg(not(feature = "ssr"))]
+}
+
+#[cfg(not(feature = "ssr"))]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct Pagination {
+    pub max_items: Option<i64>,
     pub cursor: Option<String>,
 }
 
@@ -147,7 +151,10 @@ mod ssr {
         }
     }
 
-    #[derive(Debug, Default, Deserialize, Clone, Copy, IntoBytes, Immutable, FromBytes)]
+    #[cfg(feature = "ssr")]
+    #[derive(
+        Debug, Default, Deserialize, Clone, Copy, IntoBytes, Immutable, FromBytes, Serialize,
+    )]
     pub struct Cursor {
         pub offset: i64,
     }

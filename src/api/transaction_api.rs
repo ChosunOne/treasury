@@ -1,28 +1,8 @@
-use std::sync::Arc;
-
-use axum::{
-    RequestPartsExt, Router,
-    body::Body,
-    extract::{FromRequestParts, Path, Request, State},
-    middleware::from_fn_with_state,
-    response::IntoResponse,
-};
-use http::request::Parts;
-use leptos::{
-    prelude::{expect_context, provide_context},
-    server,
-    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
-};
-use leptos_axum::{
-    ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
-};
-use serde::{Deserialize, Serialize};
-use tower::ServiceBuilder;
-use tower_http::auth::AsyncRequireAuthorizationLayer;
-use tracing::error;
-
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
+    api::{
+        Api, ApiError, ApiErrorResponse, AppState, client::ApiClient, extract_with_state,
+        set_user_groups,
+    },
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -45,6 +25,27 @@ use crate::{
         transaction_service_factory::TransactionServiceFactory,
     },
 };
+use axum::{
+    RequestPartsExt, Router,
+    body::Body,
+    extract::{FromRequestParts, Path, Request, State},
+    middleware::from_fn_with_state,
+    response::IntoResponse,
+};
+use http::request::Parts;
+use leptos::{
+    prelude::{expect_context, provide_context},
+    server,
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
+};
+use leptos_axum::{
+    ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tower::ServiceBuilder;
+use tower_http::auth::AsyncRequireAuthorizationLayer;
+use tracing::error;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct PathTransactionId {
@@ -114,7 +115,8 @@ impl FromRequestParts<AppState> for TransactionApiState {
     prefix = "/api",
     endpoint = "/transactions",
     input = GetUrl,
-    output = Json
+    output = Json,
+    client = ApiClient,
 )]
 async fn get_list(
     #[server(flatten)]
@@ -154,7 +156,8 @@ async fn get_list(
     prefix = "/api",
     endpoint = "transactions/",
     input = GetUrl,
-    output = Json
+    output = Json,
+    client = ApiClient,
 )]
 async fn get() -> Result<TransactionGetResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -183,6 +186,7 @@ async fn get() -> Result<TransactionGetResponse, ApiError> {
     endpoint = "transactions",
     input = Json,
     output = Json,
+    client = ApiClient,
 )]
 async fn create(
     #[server(flatten)] create_request: CreateRequest,
@@ -219,6 +223,7 @@ async fn create(
     endpoint = "assets/",
     input = PatchJson,
     output = PatchJson,
+    client = ApiClient,
 )]
 async fn update(update_request: UpdateRequest) -> Result<TransactionUpdateResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -252,7 +257,8 @@ async fn update(update_request: UpdateRequest) -> Result<TransactionUpdateRespon
     name = TransactionApiDelete,
     prefix = "/api",
     endpoint = "transactions/",
-    input = DeleteUrl
+    input = DeleteUrl,
+    client = ApiClient,
 )]
 async fn delete() -> Result<DeleteResponse, ApiError> {
     let state = expect_context::<AppState>();

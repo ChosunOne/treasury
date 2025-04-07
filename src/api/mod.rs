@@ -46,10 +46,10 @@ mod ssr_imports {
     pub use utoipa_swagger_ui::SwaggerUi;
 }
 
-#[cfg(feature = "ssr")]
 pub mod account_api;
 #[cfg(feature = "ssr")]
 pub mod asset_api;
+pub mod client;
 #[cfg(feature = "ssr")]
 pub mod docs_api;
 pub mod error;

@@ -22,7 +22,10 @@ use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
 
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
+    api::{
+        Api, ApiError, ApiErrorResponse, AppState, client::ApiClient, extract_with_state,
+        set_user_groups,
+    },
     authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
     authorization::{
         PermissionConfig, PermissionSet,
@@ -104,6 +107,7 @@ impl FromRequestParts<AppState> for AssetApiState {
     endpoint = "/assets",
     input = GetUrl,
     output = Json,
+    client = ApiClient,
 )]
 async fn get_list(
     #[server(flatten)]
@@ -144,6 +148,7 @@ async fn get_list(
     endpoint = "assets/",
     input = GetUrl,
     output = Json,
+    client = ApiClient,
 )]
 async fn get() -> Result<AssetGetResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -172,6 +177,7 @@ async fn get() -> Result<AssetGetResponse, ApiError> {
     endpoint = "assets",
     input = Json,
     output = Json,
+    client = ApiClient,
 )]
 async fn create(
     #[server(flatten)] create_request: CreateRequest,
@@ -209,6 +215,7 @@ async fn create(
     endpoint = "assets/",
     input = PatchJson,
     output = PatchJson,
+    client = ApiClient,
 )]
 async fn update(
     #[server(flatten)] update_request: UpdateRequest,
@@ -244,7 +251,8 @@ async fn update(
     name = AssetApiDelete,
     prefix = "/api",
     endpoint = "assets/",
-    input = DeleteUrl
+    input = DeleteUrl,
+    client = ApiClient,
 )]
 async fn delete() -> Result<DeleteResponse, ApiError> {
     let state = expect_context::<AppState>();

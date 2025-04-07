@@ -1,7 +1,8 @@
-use std::sync::Arc;
-
 use crate::{
-    api::{Api, ApiError, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
+    api::{
+        Api, ApiError, ApiErrorResponse, AppState, client::ApiClient, extract_with_state,
+        set_user_groups,
+    },
     authentication::{
         authenticated_token::AuthenticatedToken, authenticator::Authenticator,
         registered_user::RegisteredUser,
@@ -41,6 +42,7 @@ use leptos_axum::{
     ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::auth::AsyncRequireAuthorizationLayer;
 use tracing::error;
@@ -119,6 +121,7 @@ impl FromRequestParts<AppState> for UserApiState {
     endpoint = "/users",
     input = GetUrl,
     output = Json,
+    client = ApiClient,
 )]
 async fn get_list(
     #[server(flatten)]
@@ -160,6 +163,7 @@ async fn get_list(
     endpoint = "users/",
     input = GetUrl,
     output = Json,
+    client = ApiClient,
 )]
 async fn get() -> Result<UserGetResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -189,6 +193,7 @@ async fn get() -> Result<UserGetResponse, ApiError> {
     endpoint = "users",
     input = Json,
     output = Json,
+    client = ApiClient,
 )]
 async fn create(
     #[server(flatten)] create_request: UserCreateRequest,
@@ -229,6 +234,7 @@ async fn create(
     endpoint = "users/",
     input = PatchJson,
     output = PatchJson,
+    client = ApiClient,
 )]
 async fn update(
     #[server(flatten)] update_request: UserUpdateRequest,
@@ -264,7 +270,8 @@ async fn update(
     name = UserApiDelete,
     prefix = "/api",
     endpoint = "users/",
-    input = DeleteUrl
+    input = DeleteUrl,
+    client = ApiClient,
 )]
 async fn delete() -> Result<UserDeleteResponse, ApiError> {
     let state = expect_context::<AppState>();

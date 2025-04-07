@@ -30,6 +30,7 @@ use crate::{
     Default,
     Clone,
     Copy,
+    Eq,
     FromRow,
     FromStr,
     From,
@@ -40,6 +41,7 @@ use crate::{
     Type,
     Deserialize,
     Display,
+    PartialEq,
 )]
 #[sqlx(transparent)]
 pub struct CursorKeyId(pub i32);
