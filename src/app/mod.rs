@@ -89,10 +89,9 @@ pub fn App() -> impl IntoView {
     });
 
     Effect::new(move |_| {
-        let value = refresh_token.value();
-        if let Some(Ok((ref auth_token, expires_in))) = *value.get() {
+        if let Some(Ok((auth_token, expires_in))) = refresh_token.value().get() {
             rw_expires_in.set(expires_in);
-            rw_auth_token.set(Some(auth_token.into()));
+            rw_auth_token.set(Some(auth_token));
         }
     });
 

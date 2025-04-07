@@ -22,6 +22,13 @@ use crate::{
         (name = "Transactions", description = "Transaction endpoints"),
         (name = "Users", description = "User endpoints")
     ),
+    paths(
+        crate::api::account_api::get_list,
+        crate::api::account_api::get,
+        crate::api::account_api::create,
+        crate::api::account_api::update,
+        crate::api::account_api::delete,
+    ),
     modifiers(&SecurityAddon)
 )]
 pub struct DocsApi;

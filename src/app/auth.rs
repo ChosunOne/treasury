@@ -210,9 +210,8 @@ pub fn Login() -> impl IntoView {
     let auth = ServerAction::<Sso>::new();
 
     Effect::new(move |_| {
-        let value = auth.value();
-        if let Some(Ok(ref redirect)) = *value.get() {
-            window().location().set_href(redirect).unwrap();
+        if let Some(Ok(redirect)) = auth.value().get() {
+            window().location().set_href(&redirect).unwrap();
         }
     });
 
@@ -241,9 +240,8 @@ pub fn HandleAuth() -> impl IntoView {
     let rw_expires_in = expect_context::<ExpiresIn>().0;
 
     Effect::new(move |_| {
-        let value = handle_sso_redirect.value();
-        if let Some(Ok((ref auth_token, expires_in))) = *value.get() {
-            rw_auth_token.set(Some(auth_token.clone()));
+        if let Some(Ok((auth_token, expires_in))) = handle_sso_redirect.value().get() {
+            rw_auth_token.set(Some(auth_token));
             rw_expires_in.set(expires_in);
             navigate("/home", NavigateOptions::default());
         }
@@ -387,8 +385,7 @@ pub fn Logout() -> impl IntoView {
     let navigate = use_navigate();
 
     Effect::new(move |_| {
-        let value = sso_logout.value();
-        if let Some(Ok(())) = *value.get() {
+        if let Some(Ok(())) = sso_logout.value().get() {
             rw_auth_token.set(None);
             navigate("/home", NavigateOptions::default());
         }

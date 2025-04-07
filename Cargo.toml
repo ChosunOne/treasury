@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 aes-gcm-siv = {version = "0.11.1", optional = true}
 async-trait = {version = "^0.1.88", optional = true}
-axum = {version = "^0.8.1", features = ["http2", "macros"], optional=true}
+axum = {version = "^0.8.3", features = ["http2", "macros"], optional=true}
 axum-extra = {version = "^0.10.1", features = ["tracing", "cookie"], optional=true}
 base64 = {version = "0.22.1", optional = true}
 cached = {version = "^0.55.1", features = ["async"], optional = true}
@@ -22,7 +22,7 @@ derive_more = {version = "^2.0.1", features = ["full"]}
 futures-util = {version = "^0.3.31", optional = true}
 futures = {version = "^0.3.31"}
 http = {version = "^1.3.1", optional = true}
-indexmap = {version = "^2.8.0", optional = true}
+indexmap = {version = "^2.9.0", optional = true}
 jsonwebtoken = {version = "^9.3.1", optional = true}
 leptos = {git = "https://github.com/leptos-rs/leptos", branch = "main"}
 leptos_axum = {git = "https://github.com/leptos-rs/leptos", branch = "main", optional = true}
@@ -36,7 +36,7 @@ serde_json = {version = "^1.0.140", features = ["preserve_order"]}
 sqlx = {version = "^0.8.3", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"], optional = true}
 thiserror = "^2.0.12"
 time = {version = "^0.3.41", optional = true}
-tokio = {version = "^1.44.1", features = ["full"], optional = true}
+tokio = {version = "^1.44.2", features = ["full"], optional = true}
 tower = {version = "^0.5.2", optional = true}
 tower-http = {version = "^0.6.2", features = ["trace", "auth", "cors", "compression-gzip", "timeout"], optional = true}
 tracing = {version = "^0.1.41", optional = true}
@@ -44,7 +44,7 @@ tracing-subscriber = {version = "^0.3.19", features = ["env-filter"], optional =
 urlencoding = "^2.1.3"
 utoipa = {version = "^5.3.1", optional = true, features = ["axum_extras", "debug", "chrono", "uuid", "preserve_order", "preserve_path_order", "indexmap"]}
 utoipauto = {version = "^0.3.0-alpha.2", optional = true}
-utoipa-swagger-ui = {version = "^9.0.0", features = ["axum", "debug", "cache"], optional = true}
+utoipa-swagger-ui = {version = "^9.0.1", features = ["axum", "debug", "cache"], optional = true}
 uuid = {version = "^1.16.0", features = ["v4", "serde", "js"]}
 wasm-bindgen = {version = "^0.2.100", optional = true}
 zerocopy = {version = "^0.8.24", features = ["std", "simd"], optional = true}

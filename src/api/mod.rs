@@ -282,7 +282,7 @@ mod test {
     use axum::{body::Body, routing::RouterIntoService};
     use casbin::{CoreApi, Enforcer};
     use chrono::Utc;
-    use http::Uri;
+    use http::{StatusCode, Uri};
     use http_body_util::BodyExt;
     use reqwest::Client;
     use rstest::{fixture, rstest};
