@@ -4251,6 +4251,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "thiserror 2.0.12",
  "time",
@@ -4265,6 +4266,7 @@ dependencies = [
  "utoipauto",
  "uuid",
  "wasm-bindgen",
+ "web-sys",
  "zerocopy 0.8.24",
  "zerocopy-derive 0.8.24",
 ]

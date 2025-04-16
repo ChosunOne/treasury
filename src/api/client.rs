@@ -24,7 +24,7 @@ where
         let headers = req.headers();
         let auth_token = expect_context::<AuthToken>()
             .0
-            .get()
+            .get_untracked()
             .expect("Missing auth token");
         headers.append("Authorization", &format!("Bearer {auth_token}"));
         BrowserClient::send(req)
