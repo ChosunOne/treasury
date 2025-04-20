@@ -53,7 +53,6 @@ pub mod client;
 #[cfg(feature = "ssr")]
 pub mod docs_api;
 pub mod error;
-#[cfg(feature = "ssr")]
 pub mod institution_api;
 #[cfg(feature = "ssr")]
 pub mod transaction_api;

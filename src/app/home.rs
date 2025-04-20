@@ -1,9 +1,17 @@
+use std::collections::HashMap;
+
 use leptos::prelude::*;
 
 use crate::{
-    api::account_api::get_list,
+    api::{
+        account_api::get_list as account_get_list,
+        institution_api::get_list as institution_get_list,
+    },
     app::AuthToken,
-    schema::{Pagination, account::GetListRequest},
+    schema::{
+        Pagination, account::GetListRequest as AccountGetListRequest,
+        institution::GetListRequest as InstitutionGetListRequest,
+    },
 };
 
 #[component]
@@ -16,8 +24,8 @@ pub fn Home() -> impl IntoView {
             if auth_signal.is_none() {
                 return vec![];
             }
-            get_list(
-                GetListRequest {
+            account_get_list(
+                AccountGetListRequest {
                     name: None,
                     institution_id: None,
                 },
@@ -26,6 +34,25 @@ pub fn Home() -> impl IntoView {
             .await
             .expect("Failed to get accounts")
             .accounts
+        },
+    );
+
+    let institutions_map = Resource::new(
+        move || auth_token.get(),
+        |auth_signal| async move {
+            if auth_signal.is_none() {
+                return HashMap::new();
+            }
+            institution_get_list(
+                InstitutionGetListRequest { name: None },
+                Pagination::default(),
+            )
+            .await
+            .expect("Failed to get institutions")
+            .institutions
+            .into_iter()
+            .map(|i| (i.id, i))
+            .collect()
         },
     );
 
@@ -45,6 +72,7 @@ pub fn Home() -> impl IntoView {
                             </thead>
                             <tbody>
                                 {move || {
+                                        let institutions = institutions_map.get().unwrap_or(HashMap::new());
                                         accounts.get().unwrap_or(vec![]).iter().enumerate()
                                             .map(|(i, a)| view! {
                                                 <tr class={
@@ -54,7 +82,7 @@ pub fn Home() -> impl IntoView {
                                                         "bg-indigo-100 border border-gray-300"
                                                     }
                                                 }>
-                                                    <td class="px-2 text-center border border-gray-300">"Example Institution"</td>
+                                                    <td class="px-2 text-center border border-gray-300">{institutions.get(&a.institution_id).unwrap().name.clone()}</td>
                                                     <td class="px-2 text-center border border-gray-300">{a.name.clone()}</td>
                                                     <td class="px-4 text-right border border-gray-300">"1234.56"</td>
                                                     <td class="px-10 text-right border border-gray-300">"12.7"</td>

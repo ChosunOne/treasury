@@ -191,7 +191,6 @@ pub async fn get_list(
 ) -> Result<GetListResponse, ApiError> {
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<AccountApiState, _>(&state).await?;
-
     let pagination = extract_with_state::<Pagination, _>(&state).await?;
     let cursor_key = extract_with_state::<CursorKey, _>(&state).await?;
 

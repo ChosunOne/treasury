@@ -28,6 +28,11 @@ use crate::{
         crate::api::account_api::create,
         crate::api::account_api::update,
         crate::api::account_api::delete,
+        crate::api::institution_api::get_list,
+        crate::api::institution_api::get,
+        crate::api::institution_api::create,
+        crate::api::institution_api::update,
+        crate::api::institution_api::delete,
     ),
     modifiers(&SecurityAddon)
 )]
