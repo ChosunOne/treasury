@@ -47,7 +47,6 @@ mod ssr_imports {
 }
 
 pub mod account_api;
-#[cfg(feature = "ssr")]
 pub mod asset_api;
 pub mod client;
 #[cfg(feature = "ssr")]

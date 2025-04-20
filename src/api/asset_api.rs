@@ -171,7 +171,7 @@ pub use ssr::*;
     output = Json,
     client = ApiClient,
 )]
-async fn get_list(
+pub async fn get_list(
     #[server(flatten)]
     #[server(default)]
     filter: GetListRequest,
@@ -212,7 +212,7 @@ async fn get_list(
     output = Json,
     client = ApiClient,
 )]
-async fn get() -> Result<AssetGetResponse, ApiError> {
+pub async fn get() -> Result<AssetGetResponse, ApiError> {
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
 
@@ -241,7 +241,7 @@ async fn get() -> Result<AssetGetResponse, ApiError> {
     output = Json,
     client = ApiClient,
 )]
-async fn create(
+pub async fn create(
     #[server(flatten)] create_request: CreateRequest,
 ) -> Result<AssetCreateResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -279,7 +279,7 @@ async fn create(
     output = PatchJson,
     client = ApiClient,
 )]
-async fn update(
+pub async fn update(
     #[server(flatten)] update_request: UpdateRequest,
 ) -> Result<AssetUpdateResponse, ApiError> {
     let state = expect_context::<AppState>();
@@ -316,7 +316,7 @@ async fn update(
     input = DeleteUrl,
     client = ApiClient,
 )]
-async fn delete() -> Result<DeleteResponse, ApiError> {
+pub async fn delete() -> Result<DeleteResponse, ApiError> {
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<AssetApiState, _>(&state).await?;
 
