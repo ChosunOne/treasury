@@ -151,6 +151,7 @@ mod ssr {
 #[cfg(feature = "ssr")]
 pub use ssr::*;
 
+#[allow(unused_variables)]
 #[cfg_attr(feature = "ssr", utoipa::path(
     get,
     path = "/api/assets",
@@ -175,6 +176,9 @@ pub async fn get_list(
     #[server(flatten)]
     #[server(default)]
     filter: GetListRequest,
+    #[server(flatten)]
+    #[server(default)]
+    pagination: Pagination,
 ) -> Result<AssetGetListResponse, ApiError> {
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<AssetApiState, _>(&state).await?;

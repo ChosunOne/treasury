@@ -160,6 +160,7 @@ mod ssr {
 #[cfg(feature = "ssr")]
 pub use ssr::*;
 
+#[allow(unused_variables)]
 #[cfg_attr(feature = "ssr", utoipa::path(
     get,
     path = "/api/transactions",
@@ -184,6 +185,9 @@ pub async fn get_list(
     #[server(flatten)]
     #[server(default)]
     filter: GetListRequest,
+    #[server(flatten)]
+    #[server(default)]
+    pagination: Pagination,
 ) -> Result<TransactionGetListResponse, ApiError> {
     let state = expect_context::<AppState>();
     let api_state = extract_with_state::<TransactionApiState, _>(&state).await?;

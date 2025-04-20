@@ -298,10 +298,10 @@ pub fn HandleAuth() -> impl IntoView {
             .local_storage()
             .expect("Failed to get local storage API")
             .expect("No local storage");
-        let code_verifier = storage
-            .get_item("pkce_verifier")
-            .expect("No pkce_verifier")
-            .expect("pkce_verifier to not be None");
+        let Some(code_verifier) = storage.get_item("pkce_verifier").expect("No pkce_verifier")
+        else {
+            return;
+        };
         storage
             .remove_item("pkce_verifier")
             .expect("to remove pkce_verifier");

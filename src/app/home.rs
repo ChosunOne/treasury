@@ -82,7 +82,7 @@ pub fn Home() -> impl IntoView {
                                                         "bg-indigo-100 border border-gray-300"
                                                     }
                                                 }>
-                                                    <td class="px-2 text-center border border-gray-300">{institutions.get(&a.institution_id).unwrap().name.clone()}</td>
+                                                    <td class="px-2 text-center border border-gray-300">{institutions.get(&a.institution_id).map(|i| i.name.clone()).unwrap_or("".to_owned())}</td>
                                                     <td class="px-2 text-center border border-gray-300">{a.name.clone()}</td>
                                                     <td class="px-4 text-right border border-gray-300">"1234.56"</td>
                                                     <td class="px-10 text-right border border-gray-300">"12.7"</td>
