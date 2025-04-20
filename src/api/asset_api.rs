@@ -1,37 +1,6 @@
-use std::sync::Arc;
-
-use axum::{
-    RequestPartsExt, Router,
-    body::Body,
-    extract::{FromRequestParts, Path, Request, State},
-    middleware::from_fn_with_state,
-    response::IntoResponse,
-};
-use http::request::Parts;
-use leptos::{
-    prelude::{expect_context, provide_context},
-    server,
-    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
-};
-use leptos_axum::{
-    ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
-};
-use serde::{Deserialize, Serialize};
-use tower::ServiceBuilder;
-use tower_http::auth::AsyncRequireAuthorizationLayer;
-use tracing::error;
-
-use crate::{
-    api::{
-        Api, ApiError, ApiErrorResponse, AppState, client::ApiClient, extract_with_state,
-        set_user_groups,
-    },
-    authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
-    authorization::{
-        PermissionConfig, PermissionSet,
-        actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
-    },
-    model::{asset::AssetId, cursor_key::CursorKey},
+pub use crate::{
+    api::{ApiError, client::ApiClient},
+    model::asset::AssetId,
     schema::{
         Pagination,
         asset::{
@@ -39,57 +8,150 @@ use crate::{
             CreateRequest, DeleteResponse, GetListRequest, UpdateRequest,
         },
     },
-    service::{asset_service::AssetServiceMethods, asset_service_factory::AssetServiceFactory},
 };
+use leptos::{
+    server,
+    server_fn::codec::{DeleteUrl, GetUrl, Json, PatchJson},
+};
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "ssr")]
+mod ssr_imports {
+    pub use crate::{
+        api::{Api, ApiErrorResponse, AppState, extract_with_state, set_user_groups},
+        authentication::{authenticated_token::AuthenticatedToken, authenticator::Authenticator},
+        authorization::{
+            PermissionConfig, PermissionSet,
+            actions::{CreateLevel, DeleteLevel, ReadLevel, UpdateLevel},
+        },
+        model::cursor_key::CursorKey,
+        service::{asset_service::AssetServiceMethods, asset_service_factory::AssetServiceFactory},
+    };
+    pub use axum::{
+        RequestPartsExt, Router,
+        body::Body,
+        extract::{FromRequestParts, Path, Request, State},
+        middleware::from_fn_with_state,
+        response::IntoResponse,
+    };
+    pub use http::request::Parts;
+    pub use leptos::prelude::*;
+    pub use leptos_axum::{
+        ResponseOptions, extract, generate_request_and_parts, handle_server_fns_with_context,
+    };
+    pub use std::sync::Arc;
+    pub use tower::ServiceBuilder;
+    pub use tower_http::auth::AsyncRequireAuthorizationLayer;
+    pub use tracing::error;
+}
+
+#[cfg(feature = "ssr")]
+use ssr_imports::*;
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct PathAssetId {
     id: AssetId,
 }
 
-pub struct AssetApiState {
-    pub authenticated_token: AuthenticatedToken,
-    pub asset_service: Box<dyn AssetServiceMethods + Send>,
-}
+#[cfg(feature = "ssr")]
+mod ssr {
+    use super::*;
 
-impl FromRequestParts<AppState> for AssetApiState {
-    type Rejection = ApiError;
+    pub struct AssetApiState {
+        pub authenticated_token: AuthenticatedToken,
+        pub asset_service: Box<dyn AssetServiceMethods + Send>,
+    }
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
-        let authenticated_token = parts
-            .extract_with_state::<AuthenticatedToken, _>(state)
-            .await?;
+    impl FromRequestParts<AppState> for AssetApiState {
+        type Rejection = ApiError;
 
-        let permission_set = PermissionSet::new(
-            "assets",
-            &state.enforcer,
-            &authenticated_token,
-            PermissionConfig {
-                min_read_level: ReadLevel::Read,
-                min_create_level: CreateLevel::Create,
-                min_update_level: UpdateLevel::Update,
-                min_delete_level: DeleteLevel::Delete,
+        async fn from_request_parts(
+            parts: &mut Parts,
+            state: &AppState,
+        ) -> Result<Self, Self::Rejection> {
+            let authenticated_token = parts
+                .extract_with_state::<AuthenticatedToken, _>(state)
+                .await?;
+
+            let permission_set = PermissionSet::new(
+                "assets",
+                &state.enforcer,
+                &authenticated_token,
+                PermissionConfig {
+                    min_read_level: ReadLevel::Read,
+                    min_create_level: CreateLevel::Create,
+                    min_update_level: UpdateLevel::Update,
+                    min_delete_level: DeleteLevel::Delete,
+                },
+            )
+            .map_err(|e| {
+                error!("{e}");
+                ApiError::ServerError
+            })?;
+
+            let asset_service =
+                AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set);
+
+            Ok(Self {
+                authenticated_token,
+                asset_service,
+            })
+        }
+    }
+
+    async fn server_fn_handler(
+        State(state): State<AppState>,
+        req: Request<Body>,
+    ) -> impl IntoResponse {
+        let path = match req.uri().to_string() {
+            val if val == "/" => "".to_string(),
+            val if val.starts_with("/?") => val.trim_start_matches("/").to_string(),
+            _ => "/".to_string(),
+        };
+        let (mut req, parts) = generate_request_and_parts(req);
+        *req.uri_mut() = format!("/api/assets{path}").parse().unwrap();
+        handle_server_fns_with_context(
+            {
+                let app_state = state.clone();
+                move || {
+                    provide_context(app_state.clone());
+                    provide_context(parts.clone());
+                }
             },
+            req,
         )
-        .map_err(|e| {
-            error!("{e}");
-            ApiError::ServerError
-        })?;
+        .await
+    }
 
-        let asset_service =
-            AssetServiceFactory::build(Arc::clone(&state.connection_pool), permission_set);
+    pub struct AssetApi;
 
-        Ok(Self {
-            authenticated_token,
-            asset_service,
-        })
+    impl Api for AssetApi {
+        fn router(state: AppState) -> Router<AppState> {
+            Router::new()
+                .route(
+                    "/",
+                    axum::routing::get(server_fn_handler).post(server_fn_handler),
+                )
+                .route(
+                    "/{id}",
+                    axum::routing::get(server_fn_handler)
+                        .patch(server_fn_handler)
+                        .delete(server_fn_handler),
+                )
+                .layer(
+                    ServiceBuilder::new()
+                        .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
+                        .layer(from_fn_with_state(state.clone(), set_user_groups)),
+                )
+                .with_state(state)
+        }
     }
 }
 
-#[utoipa::path(
+#[cfg(feature = "ssr")]
+pub use ssr::*;
+
+#[cfg_attr(feature = "ssr", utoipa::path(
     get,
     path = "/api/assets",
     tag = "Assets",
@@ -100,7 +162,7 @@ impl FromRequestParts<AppState> for AssetApiState {
     responses(
         (status = 200, description = "The list of assets.", body = AssetGetListResponse)
     )
-)]
+))]
 #[server(
     name = AssetApiGetList,
     prefix = "/api",
@@ -129,7 +191,7 @@ async fn get_list(
     Ok(response)
 }
 
-#[utoipa::path(
+#[cfg_attr(feature = "ssr", utoipa::path(
     get,
     path = "/api/assets/{id}",
     tag = "Assets",
@@ -141,7 +203,7 @@ async fn get_list(
         (status = 200, description = "The asset.", body = AssetGetResponse),
         (status = 404, description = "The asset was not found."),
     ),
-)]
+))]
 #[server(
     name = AssetApiGet,
     prefix = "/api",
@@ -159,7 +221,7 @@ async fn get() -> Result<AssetGetResponse, ApiError> {
     Ok(asset.into())
 }
 
-#[utoipa::path(
+#[cfg_attr(feature = "ssr", utoipa::path(
     post,
     path = "/api/assets",
     tag = "Assets",
@@ -170,7 +232,7 @@ async fn get() -> Result<AssetGetResponse, ApiError> {
     responses(
         (status = 201, description = "The newly created asset.", body = AssetCreateResponse)
     ),
-)]
+))]
 #[server(
     name = AssetApiCreate,
     prefix = "/api",
@@ -195,7 +257,7 @@ async fn create(
     Ok(asset.into())
 }
 
-#[utoipa::path(
+#[cfg_attr(feature = "ssr", utoipa::path(
     patch,
     path = "/api/assets/{id}",
     params(AssetId),
@@ -208,7 +270,7 @@ async fn create(
         (status = 200, description = "The updated asset.", body = AssetUpdateResponse),
         (status = 404, description = "The asset was not found."),
     ),
-)]
+))]
 #[server(
     name = AssetApiUpdate,
     prefix = "/api",
@@ -231,7 +293,7 @@ async fn update(
     Ok(asset.into())
 }
 
-#[utoipa::path(
+#[cfg_attr(feature = "ssr", utoipa::path(
     delete,
     path = "/api/assets/{id}",
     params(AssetId),
@@ -246,7 +308,7 @@ async fn update(
             message: "Not found.".to_string()
         })),
     ),
-)]
+))]
 #[server(
     name = AssetApiDelete,
     prefix = "/api",
@@ -261,49 +323,4 @@ async fn delete() -> Result<DeleteResponse, ApiError> {
     let Path(PathAssetId { id }) = extract().await?;
     api_state.asset_service.delete(id).await?;
     Ok(DeleteResponse {})
-}
-
-async fn server_fn_handler(State(state): State<AppState>, req: Request<Body>) -> impl IntoResponse {
-    let path = match req.uri().to_string() {
-        val if val == "/" => "".to_string(),
-        val if val.starts_with("/?") => val.trim_start_matches("/").to_string(),
-        _ => "/".to_string(),
-    };
-    let (mut req, parts) = generate_request_and_parts(req);
-    *req.uri_mut() = format!("/api/assets{path}").parse().unwrap();
-    handle_server_fns_with_context(
-        {
-            let app_state = state.clone();
-            move || {
-                provide_context(app_state.clone());
-                provide_context(parts.clone());
-            }
-        },
-        req,
-    )
-    .await
-}
-
-pub struct AssetApi;
-
-impl Api for AssetApi {
-    fn router(state: AppState) -> Router<AppState> {
-        Router::new()
-            .route(
-                "/",
-                axum::routing::get(server_fn_handler).post(server_fn_handler),
-            )
-            .route(
-                "/{id}",
-                axum::routing::get(server_fn_handler)
-                    .patch(server_fn_handler)
-                    .delete(server_fn_handler),
-            )
-            .layer(
-                ServiceBuilder::new()
-                    .layer(AsyncRequireAuthorizationLayer::new(Authenticator))
-                    .layer(from_fn_with_state(state.clone(), set_user_groups)),
-            )
-            .with_state(state)
-    }
 }
