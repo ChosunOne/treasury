@@ -104,10 +104,10 @@ pub fn App() -> impl IntoView {
                     <Login/>
                 }>
                     <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home">"Home"</a>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home/accounts">"Accounts"</a>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home/transactions">"Transactions"</a>
+                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/accounts">"Accounts"</a>
+                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/transactions">"Transactions"</a>
                     <div class="flex-auto"></div>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home/profile">"Profile Options"</a>
+                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/profile">"Profile Options"</a>
                     <Logout/>
                 </Show>
             </nav>
@@ -117,23 +117,23 @@ pub fn App() -> impl IntoView {
                 <Routes fallback=|| "This page could not be found.">
                     <Route path=path!("/oauth2-redirect") view=HandleAuth/>
                     <Route path=path!("/home") view=Home/>
-                    <ParentRoute path=path!("/home/accounts") view=Accounts>
+                    <ParentRoute path=path!("/accounts") view=Accounts>
                         <Route path=path!(":id") view=AccountDetail/>
                         <Route path=path!("") view=NoAccount/>
                     </ParentRoute>
-                    <ParentRoute path=path!("/home/users") view=Users>
+                    <ParentRoute path=path!("/users") view=Users>
                         <Route path=path!(":id") view=UserDetail/>
                         <Route path=path!("") view=NoUser/>
                     </ParentRoute>
-                    <ParentRoute path=path!("/home/assets") view=Assets>
+                    <ParentRoute path=path!("/assets") view=Assets>
                         <Route path=path!(":id") view=AssetDetail/>
                         <Route path=path!("") view=NoAsset/>
                     </ParentRoute>
-                    <ParentRoute path=path!("/home/institutions") view=Institutions>
+                    <ParentRoute path=path!("/institutions") view=Institutions>
                         <Route path=path!(":id") view=InstitutionDetail/>
                         <Route path=path!("") view=NoInstitution/>
                     </ParentRoute>
-                    <ParentRoute path=path!("/home/transactions") view=Transactions>
+                    <ParentRoute path=path!("/transactions") view=Transactions>
                         <Route path=path!(":id") view=TransactionDetail/>
                         <Route path=path!("") view=NoTransaction/>
                     </ParentRoute>

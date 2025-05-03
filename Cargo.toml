@@ -10,12 +10,12 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 aes-gcm-siv = {version = "0.11.1", optional = true}
 async-trait = {version = "^0.1.88", optional = true}
-axum = {version = "^0.8.3", features = ["http2", "macros"], optional=true}
+axum = {version = "^0.8.4", features = ["http2", "macros"], optional=true}
 axum-extra = {version = "^0.10.1", features = ["tracing", "cookie"], optional=true}
 base64 = "^0.22.1"
 cached = {version = "^0.55.1", features = ["async"], optional = true}
 casbin = {version = "^2.10.1", optional = true}
-chrono = "^0.4.40"
+chrono = "^0.4.41"
 console_error_panic_hook = {version = "^0.1.7", optional = true}
 crypto-common = {version = "^0.1.6", optional = true}
 derive_more = {version = "^2.0.1", features = ["full"]}
@@ -33,7 +33,7 @@ rand = {version = "^0.9.1", optional = true}
 reqwest = {version = "^0.12.15", features = ["json"]}
 serde = {version = "^1.0.219", features = ["derive"]}
 serde_json = {version = "^1.0.140", features = ["preserve_order"]}
-sha2 = "^0.10.8"
+sha2 = "^0.10.9"
 sqlx = {version = "^0.8.5", features = ["runtime-tokio", "tls-native-tls", "postgres", "derive", "migrate", "uuid", "chrono"], optional = true}
 thiserror = "^2.0.12"
 time = {version = "^0.3.41", optional = true}
@@ -49,8 +49,8 @@ utoipa-swagger-ui = {version = "^9.0.1", features = ["axum", "debug", "cache"], 
 uuid = {version = "^1.16.0", features = ["v4", "serde", "js"]}
 wasm-bindgen = {version = "^0.2.100", optional = true}
 web-sys = {version = "^0.3.77", features = ["Crypto", "Window", "Storage"]}
-zerocopy = {version = "^0.8.24", features = ["std", "simd"], optional = true}
-zerocopy-derive = {version = "^0.8.24", optional = true}
+zerocopy = {version = "^0.8.25", features = ["std", "simd"], optional = true}
+zerocopy-derive = {version = "^0.8.25", optional = true}
 
 [dev-dependencies]
 http-body-util = {version = "^0.1.3"}

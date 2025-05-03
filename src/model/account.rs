@@ -1,4 +1,4 @@
-use derive_more::{From, FromStr};
+use derive_more::{Display, From, FromStr};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,7 +13,9 @@ mod ssr_imports {
 #[cfg(feature = "ssr")]
 use ssr_imports::*;
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, FromStr, From, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Display, Clone, Copy, PartialEq, Eq, FromStr, From, Serialize, Deserialize,
+)]
 #[cfg_attr(feature = "ssr", derive(ToSchema, IntoParams, Type))]
 #[cfg_attr(feature = "ssr", into_params(names("id")))]
 #[cfg_attr(feature = "ssr", sqlx(transparent))]
