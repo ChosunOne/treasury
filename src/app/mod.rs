@@ -35,7 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <link rel="stylesheet" id="leptos" href="/pkg/treasury.css"/>
                 <MetaTags/>
             </head>
-            <body>
+            <body class="mocha bg-ctp-base">
                 <App/>
             </body>
         </html>
@@ -97,23 +97,22 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Title text="Treasury"/>
-        <Router>
-            <nav class="mt-1 mb-1 ml-1 flex flex-row rounded-lg">
-                <Show when=move || rw_auth_token.get().is_some() fallback=|| view! {
-                    <div class="flex-auto"></div>
-                    <Login/>
-                }>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home">"Home"</a>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/accounts">"Accounts"</a>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/transactions">"Transactions"</a>
-                    <div class="flex-auto"></div>
-                    <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/profile">"Profile Options"</a>
-                    <Logout/>
-                </Show>
-            </nav>
+        <main>
+            <Router>
+                <nav class="mt-1 mb-1 ml-1 flex flex-row rounded-lg">
+                    <Show when=move || rw_auth_token.get().is_some() fallback=|| view! {
+                        <div class="flex-auto"></div>
+                        <Login/>
+                    }>
+                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home">"Home"</a>
+                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/accounts">"Accounts"</a>
+                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/transactions">"Transactions"</a>
+                        <div class="flex-auto"></div>
+                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/profile">"Profile Options"</a>
+                        <Logout/>
+                    </Show>
+                </nav>
 
-
-            <main>
                 <Routes fallback=|| "This page could not be found.">
                     <Route path=path!("/oauth2-redirect") view=HandleAuth/>
                     <Route path=path!("/home") view=Home/>
@@ -138,7 +137,7 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("") view=NoTransaction/>
                     </ParentRoute>
                 </Routes>
-            </main>
-        </Router>
+            </Router>
+        </main>
     }
 }

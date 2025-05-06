@@ -1,1 +1,65 @@
 @import "tailwindcss";
+@plugin "@catppuccin/tailwindcss";
+
+@layer utilities {
+  /* Catppuccin background colors */
+  .bg-ctp-rosewater { background-color: rgb(var(--ctp-rosewater)); }
+  .bg-ctp-flamingo { background-color: rgb(var(--ctp-flamingo)); }
+  .bg-ctp-pink { background-color: rgb(var(--ctp-pink)); }
+  .bg-ctp-mauve { background-color: rgb(var(--ctp-mauve)); }
+  .bg-ctp-red { background-color: rgb(var(--ctp-red)); }
+  .bg-ctp-maroon { background-color: rgb(var(--ctp-maroon)); }
+  .bg-ctp-peach { background-color: rgb(var(--ctp-peach)); }
+  .bg-ctp-yellow { background-color: rgb(var(--ctp-yellow)); }
+  .bg-ctp-green { background-color: rgb(var(--ctp-green)); }
+  .bg-ctp-teal { background-color: rgb(var(--ctp-teal)); }
+  .bg-ctp-sky { background-color: rgb(var(--ctp-sky)); }
+  .bg-ctp-sapphire { background-color: rgb(var(--ctp-sapphire)); }
+  .bg-ctp-blue { background-color: rgb(var(--ctp-blue)); }
+  .bg-ctp-lavender { background-color: rgb(var(--ctp-lavender)); }
+  .bg-ctp-text { background-color: rgb(var(--ctp-text)); }
+  .bg-ctp-base { background-color: rgb(var(--ctp-base)); }
+  .bg-ctp-mantle { background-color: rgb(var(--ctp-mantle)); }
+  .bg-ctp-crust { background-color: rgb(var(--ctp-crust)); }
+  .bg-ctp-surface0 { background-color: rgb(var(--ctp-surface0)); }
+  .bg-ctp-surface1 { background-color: rgb(var(--ctp-surface1)); }
+  .bg-ctp-surface2 { background-color: rgb(var(--ctp-surface2)); }
+  
+  /* Catppuccin text colors */
+  .text-ctp-rosewater { color: rgb(var(--ctp-rosewater)); }
+  .text-ctp-flamingo { color: rgb(var(--ctp-flamingo)); }
+  .text-ctp-pink { color: rgb(var(--ctp-pink)); }
+  .text-ctp-mauve { color: rgb(var(--ctp-mauve)); }
+  .text-ctp-red { color: rgb(var(--ctp-red)); }
+  .text-ctp-maroon { color: rgb(var(--ctp-maroon)); }
+  .text-ctp-peach { color: rgb(var(--ctp-peach)); }
+  .text-ctp-yellow { color: rgb(var(--ctp-yellow)); }
+  .text-ctp-green { color: rgb(var(--ctp-green)); }
+  .text-ctp-teal { color: rgb(var(--ctp-teal)); }
+  .text-ctp-sky { color: rgb(var(--ctp-sky)); }
+  .text-ctp-sapphire { color: rgb(var(--ctp-sapphire)); }
+  .text-ctp-blue { color: rgb(var(--ctp-blue)); }
+  .text-ctp-lavender { color: rgb(var(--ctp-lavender)); }
+  .text-ctp-text { color: rgb(var(--ctp-text)); }
+  .text-ctp-subtext0 { color: rgb(var(--ctp-subtext0)); }
+  .text-ctp-subtext1 { color: rgb(var(--ctp-subtext1)); }
+  
+  /* Catppuccin border colors */
+  .border-ctp-rosewater { border-color: rgb(var(--ctp-rosewater)); }
+  .border-ctp-flamingo { border-color: rgb(var(--ctp-flamingo)); }
+  .border-ctp-pink { border-color: rgb(var(--ctp-pink)); }
+  .border-ctp-mauve { border-color: rgb(var(--ctp-mauve)); }
+  .border-ctp-red { border-color: rgb(var(--ctp-red)); }
+  .border-ctp-maroon { border-color: rgb(var(--ctp-maroon)); }
+  .border-ctp-peach { border-color: rgb(var(--ctp-peach)); }
+  .border-ctp-yellow { border-color: rgb(var(--ctp-yellow)); }
+  .border-ctp-green { border-color: rgb(var(--ctp-green)); }
+  .border-ctp-teal { border-color: rgb(var(--ctp-teal)); }
+  .border-ctp-sky { border-color: rgb(var(--ctp-sky)); }
+  .border-ctp-sapphire { border-color: rgb(var(--ctp-sapphire)); }
+  .border-ctp-blue { border-color: rgb(var(--ctp-blue)); }
+  .border-ctp-lavender { border-color: rgb(var(--ctp-lavender)); }
+  .border-ctp-surface0 { border-color: rgb(var(--ctp-surface0)); }
+  .border-ctp-surface1 { border-color: rgb(var(--ctp-surface1)); }
+  .border-ctp-surface2 { border-color: rgb(var(--ctp-surface2)); }
+}
