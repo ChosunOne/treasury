@@ -35,7 +35,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <link rel="stylesheet" id="leptos" href="/pkg/treasury.css"/>
                 <MetaTags/>
             </head>
-            <body class="mocha bg-ctp-base">
+            <body class="ctp-mocha bg-gradient-to-b from-ctp-base to-ctp-crust h-full min-h-screen">
                 <App/>
             </body>
         </html>
@@ -99,14 +99,14 @@ pub fn App() -> impl IntoView {
         <Title text="Treasury"/>
         <main>
             <Router>
-                <nav class="mt-1 mb-1 ml-1 flex flex-row rounded-lg">
+                <nav class="mt-1 mb-1 ml-1 flex flex-row rounded-lg text-ctp-text">
                     <Show when=move || rw_auth_token.get().is_some() fallback=|| view! {
                         <div class="flex-auto"></div>
                         <Login/>
                     }>
-                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/home">"Home"</a>
-                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/accounts">"Accounts"</a>
-                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/transactions">"Transactions"</a>
+                        <a class="rounded border border-r-2 border-ctp-overlay0 bg-ctp-surface2 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors" href="/home">"Home"</a>
+                        <a class="rounded border border-x-2 border-ctp-overlay0 bg-ctp-surface2 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors">"Accounts"</a>
+                        <a class="rounded border border-l-2 border-ctp-overlay0 bg-ctp-surface2 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors">"Transactions"</a>
                         <div class="flex-auto"></div>
                         <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/profile">"Profile Options"</a>
                         <Logout/>
