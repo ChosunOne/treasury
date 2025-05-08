@@ -104,11 +104,11 @@ pub fn App() -> impl IntoView {
                         <div class="flex-auto"></div>
                         <Login/>
                     }>
-                        <a class="rounded border border-r-2 border-ctp-overlay0 bg-ctp-surface2 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors" href="/home">"Home"</a>
-                        <a class="rounded border border-x-2 border-ctp-overlay0 bg-ctp-surface2 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors">"Accounts"</a>
-                        <a class="rounded border border-l-2 border-ctp-overlay0 bg-ctp-surface2 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors">"Transactions"</a>
+                        <a class="rounded-l-full border-r-1 border-ctp-overlay0 bg-ctp-surface0 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors" href="/home">"Home"</a>
+                        <a class="border-x-1 border-ctp-overlay0 bg-ctp-surface0 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors">"Accounts"</a>
+                        <a class="rounded-r-full border-l-1 border-ctp-overlay0 bg-ctp-surface0 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors">"Transactions"</a>
                         <div class="flex-auto"></div>
-                        <a class="rounded border border-gray-300 bg-amber-50 px-4 py-2 font-medium transition hover:bg-amber-200 cursor-pointer" href="/profile">"Profile Options"</a>
+                        <a class="rounded-l-full border-ctp-overlay0 border-r-1 bg-ctp-surface0 hover:bg-ctp-surface1 px-4 py-2 font-medium transition cursor-pointer transition-colors" href="/profile">"Profile Options"</a>
                         <Logout/>
                     </Show>
                 </nav>

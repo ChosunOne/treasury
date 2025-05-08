@@ -57,17 +57,17 @@ pub fn Home() -> impl IntoView {
     );
 
     view! {
-        <Show when=move || auth_token.get().is_some() fallback=|| view! {<p>"Log in to access Treasury."</p>}>
+        <Show when=move || auth_token.get().is_some() fallback=|| view! {<p class="text-ctp-text">"Log in to access Treasury."</p>}>
             <div class="container">
                 <div class="flex justify-center">
                     <Suspense fallback=move || view! { <p>"Loading"</p> }>
-                        <table class="bg-indigo-50 table-auto">
+                        <table class="bg-ctp-base table-auto">
                             <thead>
                                 <tr>
-                                    <th class="px-2 border border-gray-400">"Institution"</th>
-                                    <th class="px-2 border border-gray-400">"Account Name"</th>
-                                    <th class="px-2 border border-gray-400">"Account Value"</th>
-                                    <th class="px-2 border border-gray-400">"% Change (1d)"</th>
+                                    <th class="text-ctp-yellow px-2 border border-ctp-surface2">"Institution"</th>
+                                    <th class="text-ctp-blue px-2 border border-ctp-surface2">"Account Name"</th>
+                                    <th class="text-ctp-green px-2 border border-ctp-surface2">"Account Value"</th>
+                                    <th class="text-ctp-mauve px-2 border border-ctp-surface2">"% Change (1d)"</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -77,15 +77,15 @@ pub fn Home() -> impl IntoView {
                                             .map(|(i, a)| view! {
                                                 <tr class={
                                                     if i % 2 == 0 {
-                                                        "bg-indigo-50 border border-gray-300"
+                                                        "bg-ctp-surface0 border border-ctp-surface2"
                                                     } else {
-                                                        "bg-indigo-100 border border-gray-300"
+                                                        "bg-ctp-surface1 border border-ctp-surface2"
                                                     }
                                                 }>
-                                                    <td class="px-2 text-center border border-gray-300">{institutions.get(&a.institution_id).map(|i| i.name.clone()).unwrap_or("".to_owned())}</td>
-                                                    <td class="px-2 text-center border border-gray-300">{a.name.clone()}</td>
-                                                    <td class="px-4 text-right border border-gray-300">"1234.56"</td>
-                                                    <td class="px-10 text-right border border-gray-300">"12.7"</td>
+                                                    <td class="text-ctp-text px-2 text-center border border-ctp-surface2">{institutions.get(&a.institution_id).map(|i| i.name.clone()).unwrap_or("".to_owned())}</td>
+                                                    <td class="text-ctp-text px-2 text-center border border-ctp-surface2">{a.name.clone()}</td>
+                                                    <td class="text-ctp-text px-4 text-right border border-ctp-surface2">"1234.56"</td>
+                                                    <td class="text-ctp-text px-10 text-right border border-ctp-surface2">"12.7"</td>
                                                 </tr>
                                             }).collect_view()
                                     }

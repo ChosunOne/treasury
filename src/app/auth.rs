@@ -249,7 +249,7 @@ pub fn Login() -> impl IntoView {
     });
 
     view! {
-        <button class="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 font-medium transition hover:bg-gray-300" on:click=move |_| {
+        <button class="cursor-pointer rounded-full bg-ctp-surface0 mr-4 px-4 py-2 font-medium text-ctp-text transition transition-colors hover:bg-ctp-surface2" on:click=move |_| {
             let crypto = window().crypto().expect("Failed to get crypto API");
             let mut verifier = [0u8; 32];
             let _ = crypto
@@ -451,7 +451,7 @@ pub fn Logout() -> impl IntoView {
     });
 
     view! {
-        <button class="cursor-pointer rounded border border-gray-300 bg-white px-4 py-2 font-medium transition hover:bg-gray-300" on:click=move |_| {
+        <button class="cursor-pointer rounded-r-full border-l-1 bg-ctp-surface0 mr-4 px-4 py-2 font-medium text-ctp-text transition transition-colors hover:bg-ctp-surface2" on:click=move |_| {
             sso_logout.dispatch(SsoLogout {});
         }>
         "Logout"
